@@ -17,23 +17,13 @@ export default function MastersPage() {
   const router = useRouter();
   const { hapticFeedback, mainButton } = useTelegram();
 
-  useEffect(() => {
-    loadMasters();
-  }, []);
-
-  useEffect(() => {
+  // Функции должны быть объявлены до useEffect
+  const handleContinue = useCallback(() => {
     if (selectedMaster) {
-      mainButton.setText('Продолжить');
-      mainButton.show();
-      mainButton.onClick(handleContinue);
-    } else {
-      mainButton.hide();
+      hapticFeedback.impact('medium');
+      router.push(`/booking/services?masterId=${selectedMaster.id}`);
     }
-
-    return () => {
-      mainButton.offClick(handleContinue);
-    };
-  }, [selectedMaster, mainButton, handleContinue]);
+  }, [selectedMaster, hapticFeedback, router]);
 
   const loadMasters = async () => {
     try {
@@ -58,18 +48,30 @@ export default function MastersPage() {
     }
   };
 
-  const handleContinue = useCallback(() => {
-    if (selectedMaster) {
-      hapticFeedback.impact('medium');
-      router.push(`/booking/services?masterId=${selectedMaster.id}`);
-    }
-  }, [selectedMaster, hapticFeedback, router]);
-
   const handleMasterSelect = (master: Master) => {
     hapticFeedback.impact('light');
     setSelectedMaster(master);
     hapticFeedback.notification('success');
   };
+
+  // useEffect hooks после объявления функций
+  useEffect(() => {
+    loadMasters();
+  }, []);
+
+  useEffect(() => {
+    if (selectedMaster) {
+      mainButton.setText('Продолжить');
+      mainButton.show();
+      mainButton.onClick(handleContinue);
+    } else {
+      mainButton.hide();
+    }
+
+    return () => {
+      mainButton.offClick(handleContinue);
+    };
+  }, [selectedMaster, mainButton, handleContinue]);
 
   if (loading) {
     return (
