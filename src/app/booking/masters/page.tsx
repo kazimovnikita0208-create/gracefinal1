@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/layout/Layout';
 import Card from '@/components/ui/Card';
@@ -33,7 +33,7 @@ export default function MastersPage() {
     return () => {
       mainButton.offClick(handleContinue);
     };
-  }, [selectedMaster, mainButton]);
+  }, [selectedMaster, mainButton, handleContinue]);
 
   const loadMasters = async () => {
     try {
@@ -58,17 +58,17 @@ export default function MastersPage() {
     }
   };
 
-  const handleMasterSelect = (master: Master) => {
-    hapticFeedback.impact('light');
-    setSelectedMaster(master);
-    hapticFeedback.notification('success');
-  };
-
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     if (selectedMaster) {
       hapticFeedback.impact('medium');
       router.push(`/booking/services?masterId=${selectedMaster.id}`);
     }
+  }, [selectedMaster, hapticFeedback, router]);
+
+  const handleMasterSelect = (master: Master) => {
+    hapticFeedback.impact('light');
+    setSelectedMaster(master);
+    hapticFeedback.notification('success');
   };
 
   if (loading) {
