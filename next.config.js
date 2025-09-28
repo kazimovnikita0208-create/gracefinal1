@@ -6,9 +6,7 @@ const nextConfig = {
     domains: ['localhost'],
     unoptimized: true
   },
-  // Конфигурация для Telegram Web App
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/client-app' : '',
-  basePath: process.env.NODE_ENV === 'production' ? '/client-app' : '',
+  // Конфигурация для деплоя
   trailingSlash: true,
   
   // Headers для Telegram Web App
