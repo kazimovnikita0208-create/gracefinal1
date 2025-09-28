@@ -10,7 +10,7 @@ interface CardComponent extends React.FC<CardProps> {
   Footer: React.FC<{ children: React.ReactNode; className?: string }>;
 }
 
-const Card: CardComponent = ({ children, className, onClick }) => {
+const Card = ({ children, className, onClick }: CardProps) => {
   return (
     <div
       className={cn(
@@ -59,8 +59,9 @@ const CardFooter: React.FC<{ children: React.ReactNode; className?: string }> = 
 };
 
 // Назначаем составные компоненты
-(Card as CardComponent).Header = CardHeader;
-(Card as CardComponent).Content = CardContent;
-(Card as CardComponent).Footer = CardFooter;
+const CardWithSubComponents = Card as CardComponent;
+CardWithSubComponents.Header = CardHeader;
+CardWithSubComponents.Content = CardContent;
+CardWithSubComponents.Footer = CardFooter;
 
-export default Card;
+export default CardWithSubComponents;

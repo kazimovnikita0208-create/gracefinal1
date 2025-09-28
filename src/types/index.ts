@@ -128,7 +128,7 @@ export interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   children: React.ReactNode;
-  onClick?: () => void;
+  onClick?: (event?: React.MouseEvent<HTMLButtonElement>) => void;
   className?: string;
 }
 
@@ -160,3 +160,4 @@ export interface NavigationItem {
   label: string;
   icon: string;
 }
+

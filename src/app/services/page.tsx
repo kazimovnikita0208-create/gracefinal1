@@ -165,7 +165,7 @@ export default function ServicesPage() {
                     <Button
                       size="sm"
                       onClick={(e) => {
-                        e.stopPropagation();
+                        e?.stopPropagation();
                         hapticFeedback.impact('medium');
                       }}
                     >
@@ -234,3 +234,4 @@ export default function ServicesPage() {
     </Layout>
   );
 }
+
