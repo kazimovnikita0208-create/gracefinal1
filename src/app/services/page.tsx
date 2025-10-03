@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import { NeonButton } from '@/components/ui/neon-button';
+import StyledIcon from '@/components/ui/StyledIcon';
 import { Service } from '@/types';
 import { api, mockData } from '@/lib/api';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -11,10 +12,10 @@ import { formatPrice, formatDuration } from '@/lib/utils';
 
 // Категории услуг
 const serviceCategories = [
-  { id: 'hair', name: 'Парикмахерские услуги', icon: '✂️' },
-  { id: 'nails', name: 'Маникюр и педикюр', icon: '💅' },
-  { id: 'face', name: 'Косметология', icon: '🧴' },
-  { id: 'all', name: 'Все услуги', icon: '📋' },
+  { id: 'hair', name: 'Парикмахерские услуги', icon: 'service' },
+  { id: 'nails', name: 'Маникюр и педикюр', icon: 'service' },
+  { id: 'face', name: 'Косметология', icon: 'service' },
+  { id: 'all', name: 'Все услуги', icon: 'services' },
 ];
 
 export default function ServicesPage() {
@@ -95,17 +96,21 @@ export default function ServicesPage() {
   const filteredServices = getFilteredServices();
 
   return (
-    <Layout title="Услуги и цены">
+    <Layout 
+      title="Услуги и цены"
+      showBackButton={true}
+      backButtonHref="/"
+    >
       <div className="container mx-auto max-w-sm">
         {/* Заголовок */}
         <div className="text-center mb-6 animate-fade-in">
           <div className="w-16 h-16 bg-gradient-to-br from-accent-500 to-accent-600 rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg">
             <span className="text-2xl">💅</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-white mb-2 drop-shadow-sm">
             Услуги и цены
           </h1>
-          <p className="text-gray-600">
+          <p className="text-white/80">
             Выберите категорию для просмотра услуг
           </p>
         </div>
@@ -119,11 +124,11 @@ export default function ServicesPage() {
                 onClick={() => handleCategorySelect(category.id)}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
                   selectedCategory === category.id
-                    ? 'bg-primary-500 text-white shadow-lg'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                    ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg border border-primary-400/30 backdrop-blur-sm'
+                    : 'bg-white/10 backdrop-blur-sm text-white border border-white/20 hover:bg-white/20'
                 }`}
               >
-                <span>{category.icon}</span>
+                <StyledIcon name={category.icon} size="sm" variant="default" />
                 <span>{category.name}</span>
               </button>
             ))}
@@ -131,60 +136,55 @@ export default function ServicesPage() {
         </div>
 
         {/* Список услуг */}
-        <div className="space-y-4">
+        <div className="space-y-3">
+          <h3 className="text-xl font-bold text-white drop-shadow-sm mb-4">
+            Доступные услуги
+          </h3>
           {filteredServices.map((service, index) => (
-            <Card
+            <div
               key={service.id}
-              className="animate-slide-up hover:shadow-lg cursor-pointer"
+              className="bg-gray-800/50 backdrop-blur-sm border border-gray-600/30 rounded-xl p-4 hover:border-gray-500/50 transition-all duration-300 animate-slide-up"
               onClick={handleServiceClick}
+              style={{ animationDelay: `${index * 100}ms` }}
             >
-              <Card.Content className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 mb-1">
-                      {service.name}
-                    </h3>
-                    {service.description && (
-                      <p className="text-sm text-gray-500 mb-2">
-                        {service.description}
-                      </p>
-                    )}
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-400">⏱️</span>
-                        <span className="text-sm text-gray-600">
-                          {formatDuration(service.duration)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-primary-600">
-                      {formatPrice(service.price)}
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e?.stopPropagation();
-                        hapticFeedback.impact('medium');
-                      }}
-                    >
-                      Записаться
-                    </Button>
-                  </div>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="font-bold text-white text-base mb-1 drop-shadow-sm">
+                    {service.name}
+                  </h3>
+                  <p className="text-white text-sm">
+                    {formatPrice(service.price)}
+                  </p>
                 </div>
-              </Card.Content>
-            </Card>
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-1 text-white text-sm">
+                    <span>🕒</span>
+                    <span>{formatDuration(service.duration)}</span>
+                  </div>
+                  <NeonButton
+                    variant="primary"
+                    size="sm"
+                    className="px-4 py-2 text-sm hover:scale-105 active:scale-95 transition-all duration-300"
+                    onClick={(e) => {
+                      e?.stopPropagation();
+                      hapticFeedback.impact('medium');
+                    }}
+                  >
+                    Записаться
+                  </NeonButton>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
 
         {filteredServices.length === 0 && (
           <div className="text-center py-12 animate-fade-in">
-            <div className="text-gray-400 text-6xl mb-4">🔍</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="text-white/40 text-6xl mb-4">🔍</div>
+            <h3 className="text-lg font-semibold text-white mb-2 drop-shadow-sm">
               Услуги не найдены
             </h3>
-            <p className="text-gray-500">
+            <p className="text-white/70">
               В выбранной категории пока нет доступных услуг
             </p>
           </div>
@@ -192,17 +192,17 @@ export default function ServicesPage() {
 
         {/* Информационный блок */}
         <div className="mt-8 space-y-4 animate-fade-in">
-          <Card className="bg-gradient-to-r from-primary-50 to-accent-50">
+          <Card className="bg-white/10 backdrop-blur-sm border border-white/20">
             <Card.Content className="p-4">
               <div className="flex items-start space-x-3">
-                <div className="text-primary-500 mt-0.5">
+                <div className="text-primary-400 mt-0.5">
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div>
-                  <h4 className="font-medium text-primary-900">Важная информация</h4>
-                  <ul className="text-sm text-primary-700 mt-1 space-y-1">
+                  <h4 className="font-medium text-white">Важная информация</h4>
+                  <ul className="text-sm text-white/80 mt-1 space-y-1">
                     <li>• Цены указаны без учета скидок и акций</li>
                     <li>• Время может варьироваться в зависимости от сложности</li>
                     <li>• Консультация входит в стоимость услуги</li>
@@ -212,17 +212,17 @@ export default function ServicesPage() {
             </Card.Content>
           </Card>
 
-          <Card className="bg-gradient-to-r from-green-50 to-blue-50">
+          <Card className="bg-gradient-to-r from-green-500/20 to-blue-500/20 backdrop-blur-sm border border-white/20">
             <Card.Content className="p-4">
               <div className="flex items-start space-x-3">
-                <div className="text-green-500 mt-0.5">
+                <div className="text-green-400 mt-0.5">
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div>
-                  <h4 className="font-medium text-green-900">Акции и скидки</h4>
-                  <p className="text-sm text-green-700 mt-1">
+                  <h4 className="font-medium text-white">Акции и скидки</h4>
+                  <p className="text-sm text-white/80 mt-1">
                     При записи через приложение действует скидка 10% на первое посещение!
                   </p>
                 </div>

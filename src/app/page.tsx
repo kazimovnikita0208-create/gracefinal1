@@ -3,35 +3,34 @@
 import React from 'react';
 import Link from 'next/link';
 import Layout from '@/components/layout/Layout';
-import Card from '@/components/ui/Card';
-import { SparklesCore } from '@/components/ui/sparkles';
 import { NeonButton } from '@/components/ui/neon-button';
+import StyledIcon from '@/components/ui/StyledIcon';
 import { useTelegram } from '@/hooks/useTelegram';
 
 const mainMenuItems = [
   {
     href: '/booking',
     title: 'Записаться',
-    icon: '📅',
+    icon: 'booking',
     variant: 'salon' as const,
   },
   {
     href: '/services',
     title: 'Цены и услуги',
-    icon: '💅',
+    icon: 'services',
     variant: 'primary' as const,
   },
   {
     href: '/profile',
     title: 'Личный кабинет',
-    icon: '👤',
+    icon: 'profile',
     variant: 'default' as const,
   },
   {
     href: '/contacts',
     title: 'Контакты',
-    icon: '📍',
-    variant: 'ghost' as const,
+    icon: 'contacts',
+    variant: 'default' as const,
   },
 ];
 
@@ -58,28 +57,20 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen min-h-[100dvh] relative w-full bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
-      {/* Полноэкранный анимированный фон со sparkles */}
-      <div className="w-full absolute inset-0 h-full">
-        <SparklesCore
-          id="grace-salon-sparkles"
-          background="transparent"
-          minSize={0.4}
-          maxSize={1.2}
-          particleDensity={60}
-          className="w-full h-full"
-          particleColor="#ec4899"
-          speed={0.8}
-        />
-      </div>
-
+    <Layout 
+      showHeader={false} 
+      showNavigation={false}
+      backgroundVariant="default"
+    >
       {/* Safe area для мобильных устройств */}
-      <div className="relative z-20 w-full max-w-sm mx-auto px-4 sm:px-6 flex flex-col justify-center min-h-screen min-h-[100dvh] py-safe-top pb-safe-bottom">
+      <div className="w-full max-w-sm mx-auto px-4 sm:px-6 flex flex-col justify-center min-h-screen min-h-[100dvh] py-safe-top pb-safe-bottom -mt-6">
         {/* Заголовок с адаптивными размерами */}
         <div className="text-center mb-8 sm:mb-12 animate-fade-in">
-          <h1 className="text-4xl xs:text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-center text-white relative z-20 mb-4 sm:mb-6">
-            Grace
-          </h1>
+          <Link href="/admin" onClick={handleCardClick}>
+            <h1 className="text-4xl xs:text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-center text-white relative z-20 mb-4 sm:mb-6 hover:text-primary-400 transition-colors duration-300 cursor-pointer">
+              Grace
+            </h1>
+          </Link>
           <p className="text-white/80 text-lg sm:text-xl mb-2">
             {user ? `Привет, ${user.first_name}!` : 'Салон красоты'}
           </p>
@@ -103,7 +94,7 @@ export default function HomePage() {
                 className="w-full flex items-center justify-center space-x-3 py-4 sm:py-5 font-semibold text-base sm:text-lg hover:scale-105 active:scale-95 transition-all duration-300 min-h-[56px] touch-manipulation"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <span className="text-xl sm:text-2xl flex-shrink-0">{item.icon}</span>
+                <StyledIcon name={item.icon} size="lg" variant={item.variant} className="flex-shrink-0" />
                 <span className="truncate">{item.title}</span>
               </NeonButton>
             </Link>
@@ -126,7 +117,6 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-
-    </div>
+    </Layout>
   );
 }

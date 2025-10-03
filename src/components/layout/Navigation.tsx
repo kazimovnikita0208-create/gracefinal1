@@ -48,7 +48,7 @@ const Navigation: React.FC = () => {
   const pathname = usePathname();
 
   return (
-    <nav className="bg-white border-t border-gray-200 sticky bottom-0 z-40">
+    <nav className="bg-white/10 backdrop-blur-xl border-t border-white/20 sticky bottom-0 z-40">
       <div className="px-4 py-2">
         <div className="flex items-center justify-between">
           {navigationItems.map((item) => {
@@ -60,10 +60,10 @@ const Navigation: React.FC = () => {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-colors',
+                  'flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-all duration-300',
                   isActive 
-                    ? 'text-primary-600 bg-primary-50' 
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-white bg-primary-500/30 backdrop-blur-sm shadow-lg border border-primary-400/30' 
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
                 )}
               >
                 {item.icon}
@@ -78,4 +78,5 @@ const Navigation: React.FC = () => {
 };
 
 export default Navigation;
+
 

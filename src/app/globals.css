@@ -2,6 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Улучшенная анимация пульса для Background */
+@keyframes pulse-gentle {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 3s ease-in-out infinite;
+}
+
+/* Glassmorphism эффекты */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Улучшенные переходы */
+.transition-all-300 {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Скрытие скроллбара но с сохранением функциональности */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Специальные стили для Telegram Web App */
+body {
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Нормализация для iOS */
+.ios-fix {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Touch-friendly кнопки */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Улучшенный backdrop blur */
+.backdrop-blur-strong {
+  backdrop-filter: blur(24px);
+}
+
+/* Неоновые эффекты */
+.neon-glow {
+  box-shadow: 
+    0 0 5px rgba(236, 72, 153, 0.5),
+    0 0 10px rgba(236, 72, 153, 0.3),
+    0 0 15px rgba(236, 72, 153, 0.2);
+}
+
+.neon-glow:hover {
+  box-shadow: 
+    0 0 10px rgba(236, 72, 153, 0.6),
+    0 0 20px rgba(236, 72, 153, 0.4),
+    0 0 30px rgba(236, 72, 153, 0.3);
+}
+
 @layer base {
 :root {
     /* Telegram Web App color variables */
