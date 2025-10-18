@@ -12,7 +12,7 @@ import {
   TimeSlot 
 } from '@/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://grace-backend.vercel.app/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://grace-backend-9a4n.vercel.app/api';
 
 // Общий класс для работы с API
 class ApiClient {

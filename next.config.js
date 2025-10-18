@@ -3,11 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'grace-backend-9a4n.vercel.app'],
     unoptimized: true
   },
-  // Конфигурация для деплоя
-  trailingSlash: true,
   
   // Headers для Telegram Web App
   async headers() {
