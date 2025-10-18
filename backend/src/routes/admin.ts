@@ -1,42 +1,8 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyTelegramAuth } from '../middleware/telegramAuth';
 
 const router = Router();
 const prisma = new PrismaClient();
-
-// Middleware для проверки админ прав (пока простая проверка)
-const requireAdmin = async (req: any, res: any, next: any) => {
-  try {
-    const userId = req.user.id;
-    
-    // Проверяем, является ли пользователь админом
-    const admin = await prisma.admin.findFirst({
-      where: {
-        telegramId: BigInt(req.user.telegramId),
-        isActive: true
-      }
-    });
-
-    if (!admin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Доступ запрещен. Требуются права администратора'
-      });
-    }
-
-    req.admin = admin;
-    next();
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Ошибка проверки прав доступа'
-    });
-  }
-};
-
-// Применяем проверку Telegram и прав администратора для всех admin маршрутов
-router.use(verifyTelegramAuth as any, requireAdmin as any);
 
 // GET /api/admin/dashboard - Общая статистика
 router.get('/dashboard', async (req, res) => {
@@ -58,47 +24,49 @@ router.get('/dashboard', async (req, res) => {
 
     // Общая статистика
     const totalAppointments = await prisma.appointment.count();
-    const totalRevenue = await prisma.appointment.aggregate({
+    const totalMasters = await prisma.master.count();
+    const totalServices = await prisma.service.count();
+    const totalUsers = await prisma.user.count();
+
+    // Выручка за сегодня
+    const todayRevenue = await prisma.appointment.aggregate({
+      where: {
+        appointmentDate: {
+          gte: today,
+          lt: tomorrow
+        },
+        status: 'COMPLETED'
+      },
       _sum: {
         totalPrice: true
       }
     });
-    const activeMasters = await prisma.master.count({
-      where: { isActive: true }
-    });
-    const activeServices = await prisma.service.count({
-      where: { isActive: true }
-    });
 
-    // Средний рейтинг
-    const reviews = await prisma.review.findMany({
-      select: { rating: true }
-    });
-    const averageRating = reviews.length > 0 
-      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
-      : 0;
-
-    res.json({
+    return res.json({
       success: true,
       data: {
-        todayAppointments,
-        totalAppointments,
-        totalRevenue: totalRevenue._sum.totalPrice || 0,
-        averageRating: Math.round(averageRating * 10) / 10,
-        activeMasters,
-        activeServices
+        today: {
+          appointments: todayAppointments,
+          revenue: todayRevenue._sum.totalPrice || 0
+        },
+        total: {
+          appointments: totalAppointments,
+          masters: totalMasters,
+          services: totalServices,
+          users: totalUsers
+        }
       }
     });
   } catch (error) {
     console.error('Ошибка при получении статистики:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при получении статистики'
     });
   }
 });
 
-// GET /api/admin/masters - Получить всех мастеров для админки
+// GET /api/admin/masters - Получить всех мастеров
 router.get('/masters', async (req, res) => {
   try {
     const masters = await prisma.master.findMany({
@@ -106,12 +74,6 @@ router.get('/masters', async (req, res) => {
         services: {
           include: {
             service: true
-          }
-        },
-        schedules: true,
-        reviews: {
-          select: {
-            rating: true
           }
         },
         _count: {
@@ -125,48 +87,13 @@ router.get('/masters', async (req, res) => {
       }
     });
 
-    const mastersData = masters.map(master => {
-      const reviews = master.reviews;
-      const avgRating = reviews.length > 0 
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-        : master.rating;
-
-      return {
-        id: master.id,
-        name: master.name,
-        specialization: master.specialization,
-        description: master.description,
-        photoUrl: master.photoUrl,
-        experience: master.experience,
-        rating: Math.round(avgRating * 10) / 10,
-        isActive: master.isActive,
-        appointmentsCount: master._count.appointments,
-        services: master.services.map(ms => ({
-          id: ms.service.id,
-          name: ms.service.name,
-          price: ms.service.price,
-          duration: ms.service.duration,
-          category: ms.service.category
-        })),
-        schedules: master.schedules.map(schedule => ({
-          dayOfWeek: schedule.dayOfWeek,
-          startTime: schedule.startTime,
-          endTime: schedule.endTime,
-          isWorking: schedule.isWorking
-        })),
-        createdAt: master.createdAt,
-        updatedAt: master.updatedAt
-      };
-    });
-
-    res.json({
+    return res.json({
       success: true,
-      data: mastersData,
-      count: mastersData.length
+      data: masters
     });
   } catch (error) {
     console.error('Ошибка при получении мастеров:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при получении мастеров'
     });
@@ -176,7 +103,7 @@ router.get('/masters', async (req, res) => {
 // POST /api/admin/masters - Создать нового мастера
 router.post('/masters', async (req, res) => {
   try {
-    const { name, specialization, description, photoUrl, experience, serviceIds } = req.body;
+    const { name, specialization, description, photoUrl, experience } = req.body;
 
     if (!name || !specialization) {
       return res.status(400).json({
@@ -191,33 +118,17 @@ router.post('/masters', async (req, res) => {
         specialization,
         description,
         photoUrl,
-        experience: experience ? parseInt(experience) : null,
-        isActive: true
+        experience: experience ? parseInt(experience) : null
       }
     });
 
-    // Связываем мастера с услугами
-    if (serviceIds && serviceIds.length > 0) {
-      await Promise.all(
-        serviceIds.map((serviceId: number) =>
-          prisma.masterService.create({
-            data: {
-              masterId: master.id,
-              serviceId: serviceId
-            }
-          })
-        )
-      );
-    }
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      data: master,
-      message: 'Мастер успешно создан'
+      data: master
     });
   } catch (error) {
     console.error('Ошибка при создании мастера:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при создании мастера'
     });
@@ -228,7 +139,7 @@ router.post('/masters', async (req, res) => {
 router.put('/masters/:id', async (req, res) => {
   try {
     const masterId = parseInt(req.params.id);
-    const { name, specialization, description, photoUrl, experience, isActive, serviceIds } = req.body;
+    const { name, specialization, description, photoUrl, experience, isActive } = req.body;
 
     if (isNaN(masterId)) {
       return res.status(400).json({
@@ -237,49 +148,37 @@ router.put('/masters/:id', async (req, res) => {
       });
     }
 
-    const updateData: any = {};
-    if (name) updateData.name = name;
-    if (specialization) updateData.specialization = specialization;
-    if (description !== undefined) updateData.description = description;
-    if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
-    if (experience !== undefined) updateData.experience = experience ? parseInt(experience) : null;
-    if (isActive !== undefined) updateData.isActive = isActive;
+    // Проверяем существование мастера
+    const existingMaster = await prisma.master.findUnique({
+      where: { id: masterId }
+    });
+
+    if (!existingMaster) {
+      return res.status(404).json({
+        success: false,
+        error: 'Мастер не найден'
+      });
+    }
 
     const master = await prisma.master.update({
       where: { id: masterId },
-      data: updateData
+      data: {
+        name,
+        specialization,
+        description,
+        photoUrl,
+        experience: experience ? parseInt(experience) : null,
+        isActive
+      }
     });
 
-    // Обновляем связи с услугами
-    if (serviceIds !== undefined) {
-      // Удаляем старые связи
-      await prisma.masterService.deleteMany({
-        where: { masterId: masterId }
-      });
-
-      // Создаем новые связи
-      if (serviceIds.length > 0) {
-        await Promise.all(
-          serviceIds.map((serviceId: number) =>
-            prisma.masterService.create({
-              data: {
-                masterId: masterId,
-                serviceId: serviceId
-              }
-            })
-          )
-        );
-      }
-    }
-
-    res.json({
+    return res.json({
       success: true,
-      data: master,
-      message: 'Мастер успешно обновлен'
+      data: master
     });
   } catch (error) {
     console.error('Ошибка при обновлении мастера:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при обновлении мастера'
     });
@@ -298,65 +197,43 @@ router.delete('/masters/:id', async (req, res) => {
       });
     }
 
-    // Проверяем, есть ли активные записи
-    const activeAppointments = await prisma.appointment.count({
-      where: {
-        masterId: masterId,
-        status: {
-          in: ['PENDING', 'CONFIRMED']
-        }
-      }
+    // Проверяем существование мастера
+    const existingMaster = await prisma.master.findUnique({
+      where: { id: masterId }
     });
 
-    if (activeAppointments > 0) {
-      return res.status(400).json({
+    if (!existingMaster) {
+      return res.status(404).json({
         success: false,
-        error: 'Нельзя удалить мастера с активными записями'
+        error: 'Мастер не найден'
       });
     }
 
-    // Удаляем связи с услугами
-    await prisma.masterService.deleteMany({
-      where: { masterId: masterId }
-    });
-
-    // Удаляем расписание
-    await prisma.masterSchedule.deleteMany({
-      where: { masterId: masterId }
-    });
-
-    // Удаляем мастера
     await prisma.master.delete({
       where: { id: masterId }
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Мастер успешно удален'
     });
   } catch (error) {
     console.error('Ошибка при удалении мастера:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при удалении мастера'
     });
   }
 });
 
-// GET /api/admin/services - Получить все услуги для админки
+// GET /api/admin/services - Получить все услуги
 router.get('/services', async (req, res) => {
   try {
     const services = await prisma.service.findMany({
       include: {
         masterServices: {
           include: {
-            master: {
-              select: {
-                id: true,
-                name: true,
-                specialization: true
-              }
-            }
+            master: true
           }
         },
         _count: {
@@ -370,32 +247,13 @@ router.get('/services', async (req, res) => {
       }
     });
 
-    const servicesData = services.map(service => ({
-      id: service.id,
-      name: service.name,
-      description: service.description,
-      price: service.price,
-      duration: service.duration,
-      category: service.category,
-      isActive: service.isActive,
-      appointmentsCount: service._count.appointments,
-      masters: service.masterServices.map(ms => ({
-        id: ms.master.id,
-        name: ms.master.name,
-        specialization: ms.master.specialization
-      })),
-      createdAt: service.createdAt,
-      updatedAt: service.updatedAt
-    }));
-
-    res.json({
+    return res.json({
       success: true,
-      data: servicesData,
-      count: servicesData.length
+      data: services
     });
   } catch (error) {
     console.error('Ошибка при получении услуг:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при получении услуг'
     });
@@ -405,12 +263,12 @@ router.get('/services', async (req, res) => {
 // POST /api/admin/services - Создать новую услугу
 router.post('/services', async (req, res) => {
   try {
-    const { name, description, price, duration, category, masterIds } = req.body;
+    const { name, description, price, duration, category } = req.body;
 
-    if (!name || !price || !duration || !category) {
+    if (!name || !price || !duration) {
       return res.status(400).json({
         success: false,
-        error: 'Название, цена, длительность и категория обязательны'
+        error: 'Название, цена и длительность обязательны'
       });
     }
 
@@ -420,33 +278,17 @@ router.post('/services', async (req, res) => {
         description,
         price: parseInt(price),
         duration: parseInt(duration),
-        category,
-        isActive: true
+        category
       }
     });
 
-    // Связываем услугу с мастерами
-    if (masterIds && masterIds.length > 0) {
-      await Promise.all(
-        masterIds.map((masterId: number) =>
-          prisma.masterService.create({
-            data: {
-              masterId: masterId,
-              serviceId: service.id
-            }
-          })
-        )
-      );
-    }
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      data: service,
-      message: 'Услуга успешно создана'
+      data: service
     });
   } catch (error) {
     console.error('Ошибка при создании услуги:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при создании услуги'
     });
@@ -457,7 +299,7 @@ router.post('/services', async (req, res) => {
 router.put('/services/:id', async (req, res) => {
   try {
     const serviceId = parseInt(req.params.id);
-    const { name, description, price, duration, category, isActive, masterIds } = req.body;
+    const { name, description, price, duration, category, isActive } = req.body;
 
     if (isNaN(serviceId)) {
       return res.status(400).json({
@@ -466,49 +308,37 @@ router.put('/services/:id', async (req, res) => {
       });
     }
 
-    const updateData: any = {};
-    if (name) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (price !== undefined) updateData.price = parseInt(price);
-    if (duration !== undefined) updateData.duration = parseInt(duration);
-    if (category) updateData.category = category;
-    if (isActive !== undefined) updateData.isActive = isActive;
+    // Проверяем существование услуги
+    const existingService = await prisma.service.findUnique({
+      where: { id: serviceId }
+    });
+
+    if (!existingService) {
+      return res.status(404).json({
+        success: false,
+        error: 'Услуга не найдена'
+      });
+    }
 
     const service = await prisma.service.update({
       where: { id: serviceId },
-      data: updateData
+      data: {
+        name,
+        description,
+        ...(price && { price: parseInt(price) }),
+        ...(duration && { duration: parseInt(duration) }),
+        category,
+        isActive
+      }
     });
 
-    // Обновляем связи с мастерами
-    if (masterIds !== undefined) {
-      // Удаляем старые связи
-      await prisma.masterService.deleteMany({
-        where: { serviceId: serviceId }
-      });
-
-      // Создаем новые связи
-      if (masterIds.length > 0) {
-        await Promise.all(
-          masterIds.map((masterId: number) =>
-            prisma.masterService.create({
-              data: {
-                masterId: masterId,
-                serviceId: serviceId
-              }
-            })
-          )
-        );
-      }
-    }
-
-    res.json({
+    return res.json({
       success: true,
-      data: service,
-      message: 'Услуга успешно обновлена'
+      data: service
     });
   } catch (error) {
     console.error('Ошибка при обновлении услуги:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при обновлении услуги'
     });
@@ -527,135 +357,100 @@ router.delete('/services/:id', async (req, res) => {
       });
     }
 
-    // Проверяем, есть ли активные записи
-    const activeAppointments = await prisma.appointment.count({
-      where: {
-        serviceId: serviceId,
-        status: {
-          in: ['PENDING', 'CONFIRMED']
-        }
-      }
+    // Проверяем существование услуги
+    const existingService = await prisma.service.findUnique({
+      where: { id: serviceId }
     });
 
-    if (activeAppointments > 0) {
-      return res.status(400).json({
+    if (!existingService) {
+      return res.status(404).json({
         success: false,
-        error: 'Нельзя удалить услугу с активными записями'
+        error: 'Услуга не найдена'
       });
     }
 
-    // Удаляем связи с мастерами
-    await prisma.masterService.deleteMany({
-      where: { serviceId: serviceId }
-    });
-
-    // Удаляем услугу
     await prisma.service.delete({
       where: { id: serviceId }
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Услуга успешно удалена'
     });
   } catch (error) {
     console.error('Ошибка при удалении услуги:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при удалении услуги'
     });
   }
 });
 
-// GET /api/admin/appointments - Получить все записи для админки (dev: без авторизации)
+// GET /api/admin/appointments - Получить все записи
 router.get('/appointments', async (req, res) => {
   try {
-    const { status, masterId, serviceId, startDate, endDate, page = 1, limit = 20 } = req.query;
-
-    const whereClause: any = {};
-
-    if (status && typeof status === 'string') {
-      whereClause.status = status.toUpperCase();
+    const { status, masterId, date, page = 1, limit = 10 } = req.query;
+    
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const where: any = {};
+    
+    if (status) {
+      where.status = status;
     }
-    if (masterId && typeof masterId === 'string') {
-      whereClause.masterId = parseInt(masterId);
+    
+    if (masterId) {
+      where.masterId = parseInt(masterId as string);
     }
-    if (serviceId && typeof serviceId === 'string') {
-      whereClause.serviceId = parseInt(serviceId);
-    }
-    if (startDate && typeof startDate === 'string') {
-      whereClause.appointmentDate = {
-        ...whereClause.appointmentDate,
-        gte: new Date(startDate)
+    
+    if (date) {
+      const startDate = new Date(date as string);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      
+      where.appointmentDate = {
+        gte: startDate,
+        lt: endDate
       };
     }
-    if (endDate && typeof endDate === 'string') {
-      whereClause.appointmentDate = {
-        ...whereClause.appointmentDate,
-        lte: new Date(endDate)
-      };
-    }
-
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
 
     const appointments = await prisma.appointment.findMany({
-      where: whereClause,
+      where,
       include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            phone: true
-          }
-        },
-        master: {
-          select: {
-            id: true,
-            name: true,
-            specialization: true
-          }
-        },
-        service: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            duration: true,
-            category: true
-          }
-        }
+        user: true,
+        master: true,
+        service: true
       },
       orderBy: {
         appointmentDate: 'desc'
       },
       skip,
-      take: parseInt(limit as string)
+      take: Number(limit)
     });
 
-    const total = await prisma.appointment.count({ where: whereClause });
+    const total = await prisma.appointment.count({ where });
 
-    res.json({
+    return res.json({
       success: true,
       data: appointments,
-      count: appointments.length,
       pagination: {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
+        page: Number(page),
+        limit: Number(limit),
         total,
-        totalPages: Math.ceil(total / parseInt(limit as string))
+        pages: Math.ceil(total / Number(limit))
       }
     });
   } catch (error) {
     console.error('Ошибка при получении записей:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при получении записей'
     });
   }
 });
 
-// PUT /api/admin/appointments/:id/status - Изменить статус записи (dev: без авторизации)
+// PUT /api/admin/appointments/:id/status - Изменить статус записи
 router.put('/appointments/:id/status', async (req, res) => {
   try {
     const appointmentId = parseInt(req.params.id);
@@ -668,10 +463,22 @@ router.put('/appointments/:id/status', async (req, res) => {
       });
     }
 
-    if (!status || !['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].includes(status)) {
+    if (!status) {
       return res.status(400).json({
         success: false,
-        error: 'Неверный статус записи'
+        error: 'Статус обязателен'
+      });
+    }
+
+    // Проверяем существование записи
+    const existingAppointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId }
+    });
+
+    if (!existingAppointment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Запись не найдена'
       });
     }
 
@@ -679,35 +486,21 @@ router.put('/appointments/:id/status', async (req, res) => {
       where: { id: appointmentId },
       data: { status },
       include: {
-        user: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        },
-        master: {
-          select: {
-            name: true
-          }
-        },
-        service: {
-          select: {
-            name: true
-          }
-        }
+        user: true,
+        master: true,
+        service: true
       }
     });
 
-    res.json({
+    return res.json({
       success: true,
-      data: appointment,
-      message: 'Статус записи обновлен'
+      data: appointment
     });
   } catch (error) {
-    console.error('Ошибка при обновлении статуса записи:', error);
-    res.status(500).json({
+    console.error('Ошибка при изменении статуса записи:', error);
+    return res.status(500).json({
       success: false,
-      error: 'Ошибка сервера при обновлении статуса записи'
+      error: 'Ошибка сервера при изменении статуса записи'
     });
   }
 });

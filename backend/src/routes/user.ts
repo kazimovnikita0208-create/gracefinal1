@@ -1,54 +1,20 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyTelegramAuth } from '../middleware/telegramAuth';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-// GET /api/user - Получить информацию о пользователе
-router.get('/', verifyTelegramAuth, async (req, res) => {
+// GET /api/user/me - Получить текущего пользователя
+router.get('/me', async (req, res) => {
   try {
-    const userId = (req as any).user.id;
-
     const user = await prisma.user.findUnique({
-      where: {
-        id: userId
-      },
+      where: { id: 1 }, // Временно для тестирования
       include: {
-        appointments: {
-          include: {
-            master: {
-              select: {
-                id: true,
-                name: true,
-                specialization: true
-              }
-            },
-            service: {
-              select: {
-                id: true,
-                name: true,
-                category: true
-              }
-            }
-          },
-          orderBy: {
-            appointmentDate: 'desc'
-          },
-          take: 5 // Последние 5 записей
-        },
-        reviews: {
-          include: {
-            master: {
-              select: {
-                name: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          },
-          take: 5 // Последние 5 отзывов
+        _count: {
+          select: {
+            appointments: true,
+            reviews: true
+          }
         }
       }
     });
@@ -60,225 +26,117 @@ router.get('/', verifyTelegramAuth, async (req, res) => {
       });
     }
 
-    const userData = {
-      id: user.id,
-      telegramId: user.telegramId,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      username: user.username,
-      phone: user.phone,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
-      recentAppointments: user.appointments.map(appointment => ({
-        id: appointment.id,
-        master: appointment.master,
-        service: appointment.service,
-        appointmentDate: appointment.appointmentDate,
-        status: appointment.status,
-        totalPrice: appointment.totalPrice
-      })),
-      recentReviews: user.reviews.map(review => ({
-        id: review.id,
-        master: review.master.name,
-        rating: review.rating,
-        comment: review.comment,
-        createdAt: review.createdAt
-      }))
-    };
-
-    res.json({
+    return res.json({
       success: true,
-      data: userData
+      data: user
     });
   } catch (error) {
     console.error('Ошибка при получении пользователя:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при получении пользователя'
     });
   }
 });
 
-// PUT /api/user - Обновить информацию о пользователе
-router.put('/', verifyTelegramAuth, async (req, res) => {
+// PUT /api/user/me - Обновить профиль пользователя
+router.put('/me', async (req, res) => {
   try {
-    const userId = (req as any).user.id;
-    const { firstName, lastName, phone } = req.body;
+    const { phone } = req.body;
 
-    // Валидация данных
-    const updateData: any = {};
-    
-    if (firstName && typeof firstName === 'string' && firstName.trim()) {
-      updateData.firstName = firstName.trim();
-    }
-    
-    if (lastName !== undefined) {
-      updateData.lastName = lastName ? lastName.trim() : null;
-    }
-    
-    if (phone !== undefined) {
-      updateData.phone = phone ? phone.trim() : null;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Нет данных для обновления'
-      });
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: {
-        id: userId
-      },
-      data: updateData,
-      select: {
-        id: true,
-        telegramId: true,
-        firstName: true,
-        lastName: true,
-        username: true,
-        phone: true,
-        isActive: true,
-        updatedAt: true
+    const user = await prisma.user.update({
+      where: { id: 1 }, // Временно для тестирования
+      data: {
+        phone: phone || null
       }
     });
 
-    res.json({
+    return res.json({
       success: true,
-      data: updatedUser,
-      message: 'Информация о пользователе обновлена'
+      data: user
     });
   } catch (error) {
     console.error('Ошибка при обновлении пользователя:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Ошибка сервера при обновлении пользователя'
     });
   }
 });
 
-// GET /api/user/appointments - Получить все записи пользователя
-router.get('/appointments', verifyTelegramAuth, async (req, res) => {
+// GET /api/user/me/appointments - Получить записи пользователя
+router.get('/me/appointments', async (req, res) => {
   try {
-    const userId = (req as any).user.id;
-    const { status, limit = 20, offset = 0 } = req.query;
-
-    const whereClause: any = {
-      userId: userId
+    const { status, page = 1, limit = 10 } = req.query;
+    
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const where: any = {
+      userId: 1 // Временно для тестирования
     };
-
-    if (status && typeof status === 'string') {
-      whereClause.status = status.toUpperCase();
+    
+    if (status) {
+      where.status = status;
     }
 
     const appointments = await prisma.appointment.findMany({
-      where: whereClause,
+      where,
       include: {
-        master: {
-          select: {
-            id: true,
-            name: true,
-            specialization: true,
-            photoUrl: true
-          }
-        },
-        service: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            duration: true,
-            category: true
-          }
-        }
+        master: true,
+        service: true
       },
       orderBy: {
         appointmentDate: 'desc'
       },
-      take: parseInt(limit as string),
-      skip: parseInt(offset as string)
+      skip,
+      take: Number(limit)
     });
 
-    const appointmentsData = appointments.map(appointment => ({
-      id: appointment.id,
-      master: appointment.master,
-      service: appointment.service,
-      appointmentDate: appointment.appointmentDate,
-      status: appointment.status,
-      notes: appointment.notes,
-      totalPrice: appointment.totalPrice,
-      createdAt: appointment.createdAt,
-      updatedAt: appointment.updatedAt
-    }));
+    const total = await prisma.appointment.count({ where });
 
-    res.json({
+    return res.json({
       success: true,
-      data: appointmentsData,
-      count: appointmentsData.length,
+      data: appointments,
       pagination: {
-        limit: parseInt(limit as string),
-        offset: parseInt(offset as string)
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
       }
     });
   } catch (error) {
     console.error('Ошибка при получении записей пользователя:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: 'Ошибка сервера при получении записей'
+      error: 'Ошибка сервера при получении записей пользователя'
     });
   }
 });
 
-// GET /api/user/reviews - Получить отзывы пользователя
-router.get('/reviews', verifyTelegramAuth, async (req, res) => {
+// GET /api/user/me/reviews - Получить отзывы пользователя
+router.get('/me/reviews', async (req, res) => {
   try {
-    const userId = (req as any).user.id;
-    const { limit = 20, offset = 0 } = req.query;
-
     const reviews = await prisma.review.findMany({
       where: {
-        userId: userId
+        userId: 1 // Временно для тестирования
       },
       include: {
-        master: {
-          select: {
-            id: true,
-            name: true,
-            specialization: true,
-            photoUrl: true
-          }
-        }
+        master: true
       },
       orderBy: {
         createdAt: 'desc'
-      },
-      take: parseInt(limit as string),
-      skip: parseInt(offset as string)
+      }
     });
 
-    const reviewsData = reviews.map(review => ({
-      id: review.id,
-      master: review.master,
-      rating: review.rating,
-      comment: review.comment,
-      createdAt: review.createdAt
-    }));
-
-    res.json({
+    return res.json({
       success: true,
-      data: reviewsData,
-      count: reviewsData.length,
-      pagination: {
-        limit: parseInt(limit as string),
-        offset: parseInt(offset as string)
-      }
+      data: reviews
     });
   } catch (error) {
     console.error('Ошибка при получении отзывов пользователя:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: 'Ошибка сервера при получении отзывов'
+      error: 'Ошибка сервера при получении отзывов пользователя'
     });
   }
 });
