@@ -7,11 +7,20 @@ const app = express();
 // Диагностика подключения к базе данных
 console.log('🔍 Проверяем переменные окружения...');
 console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ Установлен' : '❌ Не установлен');
-console.log('Используем SQLite для локальной разработки');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('VERCEL:', process.env.VERCEL);
 
-const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
+let prisma;
+
+try {
+  prisma = new PrismaClient({
+    log: ['query', 'info', 'warn', 'error'],
+  });
+  console.log('✅ Prisma Client создан успешно');
+} catch (error) {
+  console.error('❌ Ошибка создания Prisma Client:', error);
+  throw error;
+}
 
 // Функция инициализации базы данных
 async function initializeDatabase() {
@@ -250,6 +259,14 @@ app.get('/api/db-test', async (req, res) => {
 // Masters routes
 app.get('/api/masters', async (req, res) => {
   try {
+    // Проверяем подключение к базе данных
+    if (!prisma) {
+      return res.status(500).json({
+        success: false,
+        error: 'Prisma Client не инициализирован'
+      });
+    }
+
     const masters = await prisma.master.findMany({
       where: {
         isActive: true
