@@ -3,11 +3,24 @@ const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 
 const app = express();
-const prisma = new PrismaClient();
+
+// Диагностика подключения к базе данных
+console.log('🔍 Проверяем переменные окружения...');
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ Установлен' : '❌ Не установлен');
+
+const prisma = new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'],
+});
 
 // Функция инициализации базы данных
 async function initializeDatabase() {
   try {
+    console.log('🔌 Тестируем подключение к базе данных...');
+    
+    // Тестируем подключение
+    await prisma.$connect();
+    console.log('✅ Подключение к базе данных успешно!');
+    
     // Проверяем, есть ли уже данные
     const masterCount = await prisma.master.count();
     
@@ -176,6 +189,11 @@ async function initializeDatabase() {
     
   } catch (error) {
     console.error('❌ Ошибка при инициализации базы данных:', error);
+    console.error('Детали ошибки:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta
+    });
   }
 }
 
@@ -197,6 +215,35 @@ app.get('/api/health', (req, res) => {
     message: 'Grace Salon API is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Database connection test
+app.get('/api/db-test', async (req, res) => {
+  try {
+    console.log('🔍 Тестируем подключение к базе данных...');
+    console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ Установлен' : '❌ Не установлен');
+    
+    await prisma.$connect();
+    const result = await prisma.$queryRaw`SELECT 1 as test`;
+    
+    res.json({
+      success: true,
+      message: 'База данных подключена успешно',
+      databaseUrl: process.env.DATABASE_URL ? 'Установлен' : 'Не установлен',
+      testResult: result
+    });
+  } catch (error) {
+    console.error('❌ Ошибка подключения к базе данных:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка подключения к базе данных',
+      details: {
+        message: error.message,
+        code: error.code,
+        databaseUrl: process.env.DATABASE_URL ? 'Установлен' : 'Не установлен'
+      }
+    });
+  }
 });
 
 // Masters routes
