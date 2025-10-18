@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
+const { PrismaClient } = require('@prisma/client');
 
 const app = express();
+const prisma = new PrismaClient();
 
 // Middleware
 app.use(cors({
@@ -20,103 +22,33 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Mock data for testing
-const mockMasters = [
-  {
-    id: 1,
-    name: "Анна Иванова",
-    specialization: "Мастер маникюра",
-    description: "Опытный мастер с 5-летним стажем",
-    photoUrl: "https://via.placeholder.com/300x300",
-    experience: 5,
-    isActive: true,
-    services: [
-      {
-        service: {
-          id: 1,
-          name: "Маникюр классический",
-          price: 1500,
-          duration: 60
-        }
-      }
-    ],
-    _count: {
-      appointments: 12
-    }
-  },
-  {
-    id: 2,
-    name: "Мария Петрова",
-    specialization: "Мастер педикюра",
-    description: "Специалист по аппаратному педикюру",
-    photoUrl: "https://via.placeholder.com/300x300",
-    experience: 3,
-    isActive: true,
-    services: [
-      {
-        service: {
-          id: 2,
-          name: "Педикюр аппаратный",
-          price: 2000,
-          duration: 90
-        }
-      }
-    ],
-    _count: {
-      appointments: 8
-    }
-  }
-];
-
-const mockServices = [
-  {
-    id: 1,
-    name: "Маникюр классический",
-    description: "Классический маникюр с покрытием",
-    price: 1500,
-    duration: 60,
-    category: "Маникюр",
-    isActive: true,
-    masterServices: [
-      {
-        master: {
-          id: 1,
-          name: "Анна Иванова"
-        }
-      }
-    ],
-    _count: {
-      appointments: 12
-    }
-  },
-  {
-    id: 2,
-    name: "Педикюр аппаратный",
-    description: "Аппаратный педикюр с покрытием",
-    price: 2000,
-    duration: 90,
-    category: "Педикюр",
-    isActive: true,
-    masterServices: [
-      {
-        master: {
-          id: 2,
-          name: "Мария Петрова"
-        }
-      }
-    ],
-    _count: {
-      appointments: 8
-    }
-  }
-];
-
 // Masters routes
 app.get('/api/masters', async (req, res) => {
   try {
+    const masters = await prisma.master.findMany({
+      where: {
+        isActive: true
+      },
+      include: {
+        services: {
+          include: {
+            service: true
+          }
+        },
+        _count: {
+          select: {
+            appointments: true
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
     res.json({
       success: true,
-      data: mockMasters
+      data: masters
     });
   } catch (error) {
     console.error('Ошибка при получении мастеров:', error);
@@ -131,8 +63,27 @@ app.get('/api/masters', async (req, res) => {
 app.get('/api/masters/:id', async (req, res) => {
   try {
     const masterId = parseInt(req.params.id);
-    const master = mockMasters.find(m => m.id === masterId);
-    
+    const master = await prisma.master.findFirst({
+      where: {
+        id: masterId,
+        isActive: true
+      },
+      include: {
+        services: {
+          include: {
+            service: true
+          }
+        },
+        schedules: true,
+        _count: {
+          select: {
+            appointments: true,
+            reviews: true
+          }
+        }
+      }
+    });
+
     if (!master) {
       return res.status(404).json({
         success: false,
@@ -156,9 +107,30 @@ app.get('/api/masters/:id', async (req, res) => {
 // Services routes
 app.get('/api/services', async (req, res) => {
   try {
+    const services = await prisma.service.findMany({
+      where: {
+        isActive: true
+      },
+      include: {
+        masterServices: {
+          include: {
+            master: true
+          }
+        },
+        _count: {
+          select: {
+            appointments: true
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
     res.json({
       success: true,
-      data: mockServices
+      data: services
     });
   } catch (error) {
     console.error('Ошибка при получении услуг:', error);
@@ -173,8 +145,25 @@ app.get('/api/services', async (req, res) => {
 app.get('/api/services/:id', async (req, res) => {
   try {
     const serviceId = parseInt(req.params.id);
-    const service = mockServices.find(s => s.id === serviceId);
-    
+    const service = await prisma.service.findFirst({
+      where: {
+        id: serviceId,
+        isActive: true
+      },
+      include: {
+        masterServices: {
+          include: {
+            master: true
+          }
+        },
+        _count: {
+          select: {
+            appointments: true
+          }
+        }
+      }
+    });
+
     if (!service) {
       return res.status(404).json({
         success: false,
@@ -198,29 +187,39 @@ app.get('/api/services/:id', async (req, res) => {
 // Appointments routes
 app.get('/api/appointments', async (req, res) => {
   try {
-    const mockAppointments = [
-      {
-        id: 1,
-        userId: 1,
-        masterId: 1,
-        serviceId: 1,
-        appointmentDate: new Date(Date.now() + 86400000).toISOString(),
-        status: 'PENDING',
-        notes: 'Тестовая запись',
-        totalPrice: 1500,
-        master: mockMasters[0],
-        service: mockServices[0]
-      }
-    ];
+    const { status, page = 1, limit = 10 } = req.query;
+    
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const where = { userId: 1 }; // Временно для тестирования
+    
+    if (status) {
+      where.status = status;
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where,
+      include: {
+        master: true,
+        service: true
+      },
+      orderBy: {
+        appointmentDate: 'desc'
+      },
+      skip,
+      take: Number(limit)
+    });
+
+    const total = await prisma.appointment.count({ where });
 
     res.json({
       success: true,
-      data: mockAppointments,
+      data: appointments,
       pagination: {
-        page: 1,
-        limit: 10,
-        total: 1,
-        pages: 1
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
       }
     });
   } catch (error) {
@@ -244,8 +243,9 @@ app.post('/api/appointments', async (req, res) => {
       });
     }
 
-    const master = mockMasters.find(m => m.id === parseInt(masterId));
-    const service = mockServices.find(s => s.id === parseInt(serviceId));
+    const master = await prisma.master.findUnique({
+      where: { id: parseInt(masterId) }
+    });
 
     if (!master) {
       return res.status(404).json({
@@ -254,6 +254,10 @@ app.post('/api/appointments', async (req, res) => {
       });
     }
 
+    const service = await prisma.service.findUnique({
+      where: { id: parseInt(serviceId) }
+    });
+
     if (!service) {
       return res.status(404).json({
         success: false,
@@ -261,18 +265,28 @@ app.post('/api/appointments', async (req, res) => {
       });
     }
 
-    const appointment = {
-      id: Math.floor(Math.random() * 1000),
-      userId: 1,
-      masterId: parseInt(masterId),
-      serviceId: parseInt(serviceId),
-      appointmentDate: new Date(appointmentDate).toISOString(),
-      notes: notes || null,
-      totalPrice: service.price,
-      status: 'PENDING',
-      master: master,
-      service: service
-    };
+    const appointmentDateTime = new Date(appointmentDate);
+    if (appointmentDateTime <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Время записи должно быть в будущем'
+      });
+    }
+
+    const appointment = await prisma.appointment.create({
+      data: {
+        userId: 1, // Временно для тестирования
+        masterId: parseInt(masterId),
+        serviceId: parseInt(serviceId),
+        appointmentDate: appointmentDateTime,
+        notes: notes || null,
+        totalPrice: service.price
+      },
+      include: {
+        master: true,
+        service: true
+      }
+    });
 
     res.status(201).json({
       success: true,
@@ -290,18 +304,50 @@ app.post('/api/appointments', async (req, res) => {
 // Admin routes
 app.get('/api/admin/dashboard', async (req, res) => {
   try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayAppointments = await prisma.appointment.count({
+      where: {
+        appointmentDate: {
+          gte: today,
+          lt: tomorrow
+        }
+      }
+    });
+
+    const totalAppointments = await prisma.appointment.count();
+    const totalMasters = await prisma.master.count();
+    const totalServices = await prisma.service.count();
+    const totalUsers = await prisma.user.count();
+
+    const todayRevenue = await prisma.appointment.aggregate({
+      where: {
+        appointmentDate: {
+          gte: today,
+          lt: tomorrow
+        },
+        status: 'COMPLETED'
+      },
+      _sum: {
+        totalPrice: true
+      }
+    });
+
     res.json({
       success: true,
       data: {
         today: {
-          appointments: 3,
-          revenue: 4500
+          appointments: todayAppointments,
+          revenue: todayRevenue._sum.totalPrice || 0
         },
         total: {
-          appointments: 25,
-          masters: 2,
-          services: 2,
-          users: 15
+          appointments: totalAppointments,
+          masters: totalMasters,
+          services: totalServices,
+          users: totalUsers
         }
       }
     });
