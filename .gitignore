@@ -91,3 +91,9 @@ public
 # Temporary folders
 tmp/
 temp/
+
+# Temporary backend folders
+backend_temp/
+backend-complete_temp/
+frontend_temp/
+telegram-bot_temp/

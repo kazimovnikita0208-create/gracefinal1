@@ -31,6 +31,10 @@
   "exclude": [
     "node_modules",
     "backend/**",
-    "frontend/**"
+    "frontend/**",
+    "backend_temp/**",
+    "backend-complete_temp/**",
+    "frontend_temp/**",
+    "telegram-bot_temp/**"
   ]
 }
