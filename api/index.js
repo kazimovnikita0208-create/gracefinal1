@@ -260,14 +260,18 @@ app.get('/api/db-test', async (req, res) => {
 // Masters routes
 app.get('/api/masters', async (req, res) => {
   try {
+    console.log('🔍 Получаем мастеров...');
+    
     // Проверяем подключение к базе данных
     if (!prisma) {
+      console.error('❌ Prisma Client не инициализирован');
       return res.status(500).json({
         success: false,
         error: 'Prisma Client не инициализирован'
       });
     }
 
+    console.log('✅ Prisma Client доступен, выполняем запрос...');
     const masters = await prisma.master.findMany({
       where: {
         isActive: true
@@ -289,15 +293,22 @@ app.get('/api/masters', async (req, res) => {
       }
     });
 
+    console.log('✅ Мастера получены:', masters.length, 'записей');
     res.json({
       success: true,
       data: masters
     });
   } catch (error) {
-    console.error('Ошибка при получении мастеров:', error);
+    console.error('❌ Ошибка при получении мастеров:', error);
+    console.error('Детали ошибки:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta
+    });
     res.status(500).json({
       success: false,
-      error: 'Ошибка сервера при получении мастеров'
+      error: 'Ошибка сервера при получении мастеров',
+      details: error.message
     });
   }
 });
