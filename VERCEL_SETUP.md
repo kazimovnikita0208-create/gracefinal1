@@ -1,35 +1,47 @@
-# Настройка Vercel для работы с базой данных
+# Настройка Vercel для работы с Supabase
 
-## 1. Создание базы данных PostgreSQL
+## 1. Создание проекта в Supabase
 
-Для работы приложения нужна облачная база данных PostgreSQL. Рекомендуемые варианты:
-
-### Вариант 1: Neon (бесплатно)
-1. Перейдите на https://neon.tech
-2. Создайте аккаунт
-3. Создайте новый проект
-4. Скопируйте строку подключения (DATABASE_URL)
-
-### Вариант 2: Supabase (бесплатно)
+### Шаг 1: Регистрация в Supabase
 1. Перейдите на https://supabase.com
-2. Создайте аккаунт
-3. Создайте новый проект
-4. В настройках проекта найдите Database URL
+2. Нажмите "Start your project"
+3. Войдите через GitHub (рекомендуется) или создайте аккаунт
+4. Нажмите "New Project"
 
-### Вариант 3: Railway (бесплатно)
-1. Перейдите на https://railway.app
-2. Создайте аккаунт
-3. Создайте новый проект с PostgreSQL
-4. Скопируйте DATABASE_URL
+### Шаг 2: Создание проекта
+1. **Organization**: Выберите вашу организацию или создайте новую
+2. **Project Name**: `grace-salon-db`
+3. **Database Password**: Создайте надежный пароль (сохраните его!)
+4. **Region**: Выберите ближайший регион (например, Europe West)
+5. Нажмите "Create new project"
+
+### Шаг 3: Получение DATABASE_URL
+1. Дождитесь создания проекта (2-3 минуты)
+2. Перейдите в **Settings** → **Database**
+3. Найдите секцию **Connection string**
+4. Скопируйте **URI** (она выглядит как `postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres`)
+5. Замените `[password]` на ваш пароль
 
 ## 2. Настройка переменных окружения в Vercel
 
-1. Перейдите в настройки проекта на Vercel
-2. Откройте раздел "Environment Variables"
-3. Добавьте переменную:
+### Шаг 1: Открытие настроек проекта
+1. Перейдите на https://vercel.com/dashboard
+2. Найдите ваш проект `gracefinal`
+3. Нажмите на проект
+4. Перейдите в **Settings** → **Environment Variables**
+
+### Шаг 2: Добавление DATABASE_URL
+1. Нажмите **Add New**
+2. Заполните поля:
    - **Name**: `DATABASE_URL`
-   - **Value**: ваша строка подключения к PostgreSQL
-   - **Environment**: Production, Preview, Development
+   - **Value**: вставьте скопированную строку подключения из Supabase
+   - **Environment**: выберите **Production**, **Preview**, **Development**
+3. Нажмите **Save**
+
+### Шаг 3: Перезапуск деплоя
+1. Перейдите в **Deployments**
+2. Нажмите **Redeploy** на последнем деплое
+3. Дождитесь завершения (2-3 минуты)
 
 ## 3. Инициализация базы данных
 
@@ -37,6 +49,11 @@
 1. Сгенерирует Prisma Client
 2. Применит схему к базе данных
 3. Заполнит базу тестовыми данными
+
+### Проверка в Supabase
+1. Откройте ваш проект в Supabase
+2. Перейдите в **Table Editor**
+3. Вы должны увидеть созданные таблицы: `User`, `Master`, `Service`, `Appointment` и др.
 
 ## 4. Структура данных
 
@@ -49,8 +66,22 @@
 
 ## 5. Проверка работы
 
-После деплоя проверьте:
+### API Endpoints
 - https://gracefinal.vercel.app/api/health - статус API
 - https://gracefinal.vercel.app/api/masters - список мастеров
 - https://gracefinal.vercel.app/api/services - список услуг
-- https://gracefinal.vercel.app - основное приложение
+- https://gracefinal.vercel.app/api/appointments - записи пользователя
+
+### Основное приложение
+- https://gracefinal.vercel.app - главная страница
+- https://gracefinal.vercel.app/booking - запись к мастеру
+- https://gracefinal.vercel.app/admin - админ панель
+
+## 6. Преимущества Supabase
+
+✅ **Бесплатный план**: 500MB базы данных, 2GB трафика в месяц
+✅ **Автоматические бэкапы**: Ежедневные снимки базы данных
+✅ **Веб-интерфейс**: Удобное управление данными через веб-панель
+✅ **Real-time**: Возможность добавления real-time функций в будущем
+✅ **Auth**: Встроенная аутентификация (можно использовать позже)
+✅ **Storage**: Файловое хранилище для фотографий мастеров
