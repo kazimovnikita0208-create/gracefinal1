@@ -9,6 +9,7 @@ console.log('🔍 Проверяем переменные окружения...'
 console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ Установлен' : '❌ Не установлен');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('VERCEL:', process.env.VERCEL);
+console.log('Используем SQLite для локальной разработки');
 
 let prisma;
 
