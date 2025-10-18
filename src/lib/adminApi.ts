@@ -8,7 +8,7 @@ import {
   PaginatedResponse 
 } from '@/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://grace-backend-9a4n.vercel.app/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 // Класс для работы с админ API
 class AdminApiClient {
