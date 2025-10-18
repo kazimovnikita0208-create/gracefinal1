@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Layout from '@/components/layout/Layout';
 import { NeonButton } from '@/components/ui/neon-button';
 import StyledIcon from '@/components/ui/StyledIcon';
 import { useTelegram } from '@/hooks/useTelegram';
+import { adminApi, formatPrice } from '@/lib/adminApi';
 
 const adminMenuItems = [
   {
@@ -60,6 +61,33 @@ const adminMenuItems = [
 
 export default function AdminPage() {
   const { hapticFeedback } = useTelegram();
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    totalAppointments: 0,
+    totalRevenue: 0,
+    averageRating: 0,
+    activeMasters: 0,
+    activeServices: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      setLoading(true);
+      const response = await adminApi.getDashboardStats();
+      if (response.success && response.data) {
+        setStats(response.data);
+      }
+    } catch (err) {
+      console.error('Ошибка при загрузке статистики:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCardClick = () => {
     hapticFeedback.impact('light');
@@ -122,24 +150,30 @@ export default function AdminPage() {
         {/* Статистика */}
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 border border-white/20 animate-fade-in">
           <h3 className="font-semibold text-white mb-3 drop-shadow-sm">📊 Быстрая статистика</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="text-center">
-              <div className="text-white/80">Сегодня</div>
-              <div className="text-white font-bold">8 записей</div>
+          {loading ? (
+            <div className="text-center py-4">
+              <div className="text-white/60">Загрузка статистики...</div>
             </div>
-            <div className="text-center">
-              <div className="text-white/80">Выручка</div>
-              <div className="text-green-400 font-bold">₽24,500</div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="text-center">
+                <div className="text-white/80">Сегодня</div>
+                <div className="text-white font-bold">{stats.todayAppointments} записей</div>
+              </div>
+              <div className="text-center">
+                <div className="text-white/80">Выручка</div>
+                <div className="text-green-400 font-bold">{formatPrice(stats.totalRevenue)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-white/80">Мастера</div>
+                <div className="text-white font-bold">{stats.activeMasters}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-white/80">Рейтинг</div>
+                <div className="text-yellow-400 font-bold">{stats.averageRating.toFixed(1)}⭐</div>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-white/80">Клиенты</div>
-              <div className="text-white font-bold">156</div>
-            </div>
-            <div className="text-center">
-              <div className="text-white/80">Рейтинг</div>
-              <div className="text-yellow-400 font-bold">4.9⭐</div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Дополнительная информация */}

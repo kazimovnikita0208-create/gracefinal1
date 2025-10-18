@@ -1,0 +1,51 @@
+{
+  "name": "grace-salon-backend",
+  "version": "1.0.0",
+  "description": "Backend API для салона красоты Grace",
+  "main": "dist/app.js",
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:view": "tsx src/scripts/viewData.ts",
+    "db:web": "tsx src/scripts/webViewer.ts",
+    "db:simple": "tsx src/scripts/simpleViewer.ts",
+    "test:api": "tsx src/scripts/testApi.ts"
+  },
+  "keywords": [
+    "salon",
+    "beauty",
+    "telegram",
+    "api",
+    "backend"
+  ],
+  "author": "Nikita",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^5.7.0",
+    "@types/node-fetch": "^2.6.13",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^7.1.0",
+    "joi": "^17.11.0",
+    "node-fetch": "^3.3.2",
+    "prisma": "^5.7.0",
+    "telegraf": "^4.15.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "nodemon": "^3.0.2",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.3"
+  }
+}

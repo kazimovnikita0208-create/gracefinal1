@@ -103,3 +103,5 @@ frontend/
 
 **Автор:** Grace Beauty Salon Team  
 **Технологии:** Next.js, React, TypeScript, Tailwind CSS
+
+

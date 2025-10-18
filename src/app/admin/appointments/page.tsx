@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { NeonButton } from '@/components/ui/neon-button';
 import StyledIcon from '@/components/ui/StyledIcon';
 import { useTelegram } from '@/hooks/useTelegram';
 import { formatPrice } from '@/lib/utils';
+import { adminApi } from '@/lib/adminApi';
 
 // Моковые данные записей
 const mockAppointments = [
@@ -66,9 +67,35 @@ const statusLabels = {
 
 export default function AdminAppointmentsPage() {
   const { hapticFeedback } = useTelegram();
-  const [appointments, setAppointments] = useState(mockAppointments);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState('2024-01-15');
   const [selectedStatus, setSelectedStatus] = useState('all');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await adminApi.getAppointments();
+        if (res.success && res.data) {
+          const normalized = res.data.map((apt: any) => ({
+            id: apt.id,
+            clientName: `${apt.user?.firstName || ''} ${apt.user?.lastName || ''}`.trim(),
+            clientPhone: apt.user?.phone || '',
+            masterName: apt.master?.name || '',
+            serviceName: apt.service?.name || '',
+            date: new Date(apt.appointmentDate).toISOString().slice(0,10),
+            time: new Date(apt.appointmentDate).toTimeString().slice(0,5),
+            duration: apt.service?.duration || 0,
+            price: apt.service?.price || 0,
+            status: String(apt.status).toLowerCase(),
+            notes: apt.notes || ''
+          }));
+          setAppointments(normalized);
+        }
+      } catch (e) {
+        // оставим пустой список в случае ошибки
+      }
+    })();
+  }, []);
 
   const filteredAppointments = appointments.filter(appointment => {
     const dateMatch = selectedDate === 'all' || appointment.date === selectedDate;
@@ -76,11 +103,19 @@ export default function AdminAppointmentsPage() {
     return dateMatch && statusMatch;
   });
 
-  const handleStatusChange = (appointmentId: number, newStatus: string) => {
+  const handleStatusChange = async (appointmentId: number, newStatus: string) => {
     hapticFeedback.impact('light');
-    setAppointments(appointments.map(apt => 
-      apt.id === appointmentId ? { ...apt, status: newStatus } : apt
-    ));
+    try {
+      const apiStatus = newStatus.toUpperCase();
+      const res = await adminApi.updateAppointmentStatus(appointmentId, apiStatus);
+      if (res.success) {
+        setAppointments(appointments.map(apt => 
+          apt.id === appointmentId ? { ...apt, status: newStatus } : apt
+        ));
+      }
+    } catch (e) {
+      // no-op
+    }
   };
 
   const handleReschedule = (appointmentId: number) => {

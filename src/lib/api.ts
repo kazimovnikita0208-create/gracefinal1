@@ -12,7 +12,7 @@ import {
   TimeSlot 
 } from '@/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3335/api';
 
 // Общий класс для работы с API
 class ApiClient {
@@ -20,6 +20,12 @@ class ApiClient {
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+  }
+
+  private getTelegramInitData(): string | undefined {
+    if (typeof window === 'undefined') return undefined;
+    const tg = (window as any).Telegram?.WebApp;
+    return tg?.initData as string | undefined;
   }
 
   private async request<T>(
@@ -31,6 +37,7 @@ class ApiClient {
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        ...(this.getTelegramInitData() ? { 'X-Telegram-Init-Data': this.getTelegramInitData()! } : {}),
         ...options.headers,
       },
       ...options,
@@ -47,6 +54,12 @@ class ApiClient {
       return data;
     } catch (error) {
       console.error('API request failed:', error);
+      
+      // Более понятные сообщения об ошибках
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error('Не удалось подключиться к серверу. Проверьте, что бэкенд запущен на порту 3334');
+      }
+      
       throw error;
     }
   }
@@ -117,6 +130,11 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(appointmentData),
     });
+  }
+
+  async getMyAppointments(status?: string): Promise<ApiResponse<Appointment[]>> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.request<Appointment[]>(`/appointments${query}`);
   }
 
   async getUserAppointments(userId: number): Promise<ApiResponse<Appointment[]>> {

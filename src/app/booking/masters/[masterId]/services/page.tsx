@@ -1,77 +1,55 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTelegram } from '@/hooks/useTelegram';
 import { Layout } from '@/components/layout';
 import { NeonButton } from '@/components/ui/neon-button';
 import Card from '@/components/ui/Card';
-import { Clock, Star, User, ArrowLeft } from 'lucide-react';
+import { Clock, Star, User } from 'lucide-react';
+import { api } from '@/lib/api';
+import { formatPrice } from '@/lib/adminApi';
+import type { Master, Service } from '@/types';
 
-// Моковые данные мастеров
-const masters = [
-  {
-    id: 1,
-    name: 'Анна Иванова',
-    specialization: 'Мастер маникюра и педикюра',
-    rating: 4.9,
-    experience: '5 лет',
-    photo: '/api/placeholder/80/80',
-    services: [
-      { id: 1, name: 'Маникюр классический', price: 1500, duration: '60 мин' },
-      { id: 2, name: 'Педикюр классический', price: 2000, duration: '90 мин' },
-      { id: 3, name: 'Покрытие гель-лак', price: 800, duration: '30 мин' },
-      { id: 4, name: 'Френч', price: 1200, duration: '45 мин' },
-      { id: 5, name: 'Наращивание ногтей', price: 3000, duration: '120 мин' }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Мария Петрова',
-    specialization: 'Мастер по бровям и ресницам',
-    rating: 4.8,
-    experience: '3 года',
-    photo: '/api/placeholder/80/80',
-    services: [
-      { id: 6, name: 'Коррекция бровей', price: 1000, duration: '30 мин' },
-      { id: 7, name: 'Окрашивание бровей', price: 1500, duration: '45 мин' },
-      { id: 8, name: 'Наращивание ресниц', price: 2500, duration: '90 мин' },
-      { id: 9, name: 'Ламинирование ресниц', price: 2000, duration: '60 мин' }
-    ]
-  },
-  {
-    id: 3,
-    name: 'Елена Сидорова',
-    specialization: 'Мастер по макияжу',
-    rating: 4.9,
-    experience: '7 лет',
-    photo: '/api/placeholder/80/80',
-    services: [
-      { id: 10, name: 'Дневной макияж', price: 2000, duration: '60 мин' },
-      { id: 11, name: 'Вечерний макияж', price: 3000, duration: '90 мин' },
-      { id: 12, name: 'Свадебный макияж', price: 5000, duration: '120 мин' }
-    ]
-  }
-];
-
-const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 0,
-  }).format(price);
-};
+// Используем общий форматер (цены хранятся в копейках, делим на 100)
 
 export default function MasterServicesPage() {
   const params = useParams();
   const router = useRouter();
   const { hapticFeedback } = useTelegram();
   const [selectedService, setSelectedService] = useState<number | null>(null);
+  const [master, setMaster] = useState<Master | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const masterId = parseInt(params.masterId as string);
-  const master = masters.find(m => m.id === masterId);
+  const masterId = Number(params.masterId);
 
-  if (!master) {
+  useEffect(() => {
+    let isCancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const [mRes, sRes] = await Promise.all([
+          api.getMaster(masterId),
+          api.getServicesByMaster(masterId)
+        ]);
+        if (!isCancelled) {
+          if (mRes.success && mRes.data) setMaster(mRes.data);
+          if (sRes.success && sRes.data) setServices(sRes.data);
+        }
+      } catch (e: any) {
+        if (!isCancelled) setError(e?.message || 'Не удалось загрузить данные мастера');
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
+    }
+    if (Number.isFinite(masterId)) load();
+    return () => { isCancelled = true; };
+  }, [masterId]);
+
+  if (!loading && !master) {
     return (
       <Layout 
         title="Мастер не найден" 
@@ -93,6 +71,25 @@ export default function MasterServicesPage() {
           >
             Выбрать другого мастера
           </NeonButton>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Layout title="Загрузка" showBackButton={true} backButtonHref="/booking/masters">
+        <div className="flex items-center justify-center min-h-[60vh] text-white/80">Загрузка...</div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout title="Ошибка" showBackButton={true} backButtonHref="/booking/masters">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+          <div className="text-white/80 mb-3">{error}</div>
+          <NeonButton variant="primary" onClick={() => router.refresh()}>Повторить</NeonButton>
         </div>
       </Layout>
     );
@@ -123,26 +120,26 @@ export default function MasterServicesPage() {
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-3 mb-4">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                {master.name.split(' ').map(n => n[0]).join('')}
+                {master?.name?.split(' ').map(n => n[0]).join('')}
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-sm font-bold text-white mb-1 drop-shadow-sm truncate">
-                  {master.name}
+                  {master?.name}
                 </h2>
                 <p className="text-white/80 text-xs drop-shadow-sm truncate">
-                  {master.specialization}
+                  {master?.specialization}
                 </p>
                 <div className="flex items-center space-x-3 mt-1">
                   <div className="flex items-center space-x-1">
                     <Star className="w-3 h-3 text-yellow-400 fill-current" />
                     <span className="text-white/80 text-xs drop-shadow-sm font-medium">
-                      {master.rating}
+                      {(master as any).rating || 0}
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <User className="w-3 h-3 text-white/60" />
                     <span className="text-white/80 text-xs drop-shadow-sm">
-                      {master.experience}
+                      {(master as any).experience || 0} лет
                     </span>
                   </div>
                 </div>
@@ -157,7 +154,7 @@ export default function MasterServicesPage() {
             Доступные услуги
           </h3>
           <div className="space-y-2">
-            {master.services.map((service) => (
+            {services.map((service) => (
               <div
                 key={service.id}
                 className={`cursor-pointer transition-all duration-300 ${

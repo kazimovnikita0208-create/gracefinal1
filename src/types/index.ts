@@ -16,6 +16,15 @@ export interface Master {
   specialization: string;
   description?: string;
   photoUrl?: string;
+  rating?: number;
+  experience?: number;
+  services?: Array<{
+    id: number;
+    name: string;
+    price: number;
+    duration: number;
+    category: string;
+  }>; 
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -40,6 +49,7 @@ export interface Appointment {
   appointmentDate: string;
   status: AppointmentStatus;
   notes?: string;
+  totalPrice?: number;
   createdAt: string;
   updatedAt: string;
   // Дополнительные поля для отображения

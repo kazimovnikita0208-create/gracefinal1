@@ -7,52 +7,10 @@ import { Layout } from '@/components/layout';
 import { NeonButton } from '@/components/ui/neon-button';
 import Modal from '@/components/ui/Modal';
 import { Clock, Calendar, User, Star } from 'lucide-react';
+import { api } from '@/lib/api';
+import { formatPrice } from '@/lib/utils';
 
-// Моковые данные мастеров и услуг
-const masters = [
-  {
-    id: 1,
-    name: 'Анна Иванова',
-    specialization: 'Мастер маникюра и педикюра',
-    rating: 4.9,
-    experience: '5 лет',
-    photo: '/api/placeholder/80/80',
-    services: [
-      { id: 1, name: 'Маникюр классический', price: 1500, duration: '60 мин' },
-      { id: 2, name: 'Педикюр классический', price: 2000, duration: '90 мин' },
-      { id: 3, name: 'Покрытие гель-лак', price: 800, duration: '30 мин' },
-      { id: 4, name: 'Френч', price: 1200, duration: '45 мин' },
-      { id: 5, name: 'Наращивание ногтей', price: 3000, duration: '120 мин' }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Мария Петрова',
-    specialization: 'Мастер по бровям и ресницам',
-    rating: 4.8,
-    experience: '3 года',
-    photo: '/api/placeholder/80/80',
-    services: [
-      { id: 6, name: 'Коррекция бровей', price: 1000, duration: '30 мин' },
-      { id: 7, name: 'Окрашивание бровей', price: 1500, duration: '45 мин' },
-      { id: 8, name: 'Наращивание ресниц', price: 2500, duration: '90 мин' },
-      { id: 9, name: 'Ламинирование ресниц', price: 2000, duration: '60 мин' }
-    ]
-  },
-  {
-    id: 3,
-    name: 'Елена Сидорова',
-    specialization: 'Мастер по макияжу',
-    rating: 4.9,
-    experience: '7 лет',
-    photo: '/api/placeholder/80/80',
-    services: [
-      { id: 10, name: 'Дневной макияж', price: 2000, duration: '60 мин' },
-      { id: 11, name: 'Вечерний макияж', price: 3000, duration: '90 мин' },
-      { id: 12, name: 'Свадебный макияж', price: 5000, duration: '120 мин' }
-    ]
-  }
-];
+// Данные загружаем из API
 
 // Моковые данные для доступных дат и времени
 const generateAvailableDates = () => {
@@ -109,13 +67,7 @@ const generateAvailableTimes = (date: string) => {
   return times;
 };
 
-const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 0,
-  }).format(price);
-};
+// formatPrice берем из utils (переводит копейки → рубли)
 
 export default function TimeSelectionPage() {
   const params = useParams();
@@ -132,8 +84,31 @@ export default function TimeSelectionPage() {
   const masterId = parseInt(params.masterId as string);
   const serviceId = parseInt(params.serviceId as string);
   
-  const master = masters.find(m => m.id === masterId);
-  const service = master?.services.find(s => s.id === serviceId);
+  const [master, setMaster] = useState<any | null>(null);
+  const [service, setService] = useState<any | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [mRes, sRes] = await Promise.all([
+          api.getMaster(masterId),
+          api.getServicesByMaster(masterId)
+        ]);
+        if (cancelled) return;
+        if (mRes.success && mRes.data) setMaster(mRes.data);
+        if (sRes.success && sRes.data) {
+          const found = sRes.data.find((s: any) => s.id === serviceId);
+          setService(found || null);
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || 'Не удалось загрузить данные');
+      }
+    }
+    if (Number.isFinite(masterId) && Number.isFinite(serviceId)) load();
+    return () => { cancelled = true; };
+  }, [masterId, serviceId]);
 
   useEffect(() => {
     setAvailableDates(generateAvailableDates());
@@ -157,11 +132,24 @@ export default function TimeSelectionPage() {
     setShowTimeModal(false);
   };
 
-  const handleConfirmBooking = () => {
-    if (selectedDate && selectedTime) {
-      hapticFeedback.impact('medium');
-      setShowTimeModal(false);
-      setShowConfirmModal(true);
+  const handleConfirmBooking = async () => {
+    if (selectedDate && selectedTime && master && service) {
+      try {
+        hapticFeedback.impact('medium');
+        const iso = new Date(`${selectedDate}T${selectedTime}:00`).toISOString();
+        await api.createAppointment({
+          masterId: masterId,
+          serviceId: serviceId,
+          appointmentDate: iso,
+        });
+        // перенаправляем в личный кабинет на предстоящие записи
+        setShowTimeModal(false);
+        router.push('/profile/appointments');
+      } catch (e) {
+        // если что-то пошло не так, оставим старое поведение с подтверждением
+        setShowTimeModal(false);
+        setShowConfirmModal(true);
+      }
     }
   };
 
@@ -171,7 +159,7 @@ export default function TimeSelectionPage() {
     router.push('/');
   };
 
-  if (!master || !service) {
+  if (error || !master || !service) {
     return (
       <Layout 
         title="Ошибка" 
@@ -212,7 +200,7 @@ export default function TimeSelectionPage() {
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-3 mb-4">
             <div className="flex items-center space-x-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                {master.name.split(' ').map(n => n[0]).join('')}
+                {master.name.split(' ').map((n: string) => n[0]).join('')}
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-sm font-bold text-white mb-1 drop-shadow-sm truncate">

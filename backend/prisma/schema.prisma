@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Пользователи (клиенты салона)
+model User {
+  id          Int      @id @default(autoincrement())
+  telegramId  BigInt   @unique
+  firstName   String
+  lastName    String?
+  username    String?
+  phone       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Связи
+  appointments Appointment[]
+  reviews      Review[]
+  
+  @@map("users")
+}
+
+// Мастера салона
+model Master {
+  id            Int      @id @default(autoincrement())
+  name          String
+  specialization String
+  description   String?
+  photoUrl      String?
+  experience    Int?     // Опыт в годах
+  rating        Float    @default(0.0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Связи
+  appointments  Appointment[]
+  schedules    MasterSchedule[]
+  services      MasterService[]
+  reviews       Review[]
+  
+  @@map("masters")
+}
+
+// Услуги салона
+model Service {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Int      // Цена в копейках
+  duration    Int      // Длительность в минутах
+  category    String   // hair, nails, face
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Связи
+  appointments Appointment[]
+  masterServices MasterService[]
+  
+  @@map("services")
+}
+
+// Записи клиентов
+model Appointment {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  masterId       Int
+  serviceId      Int
+  appointmentDate DateTime
+  status         String   @default("PENDING") // PENDING, CONFIRMED, COMPLETED, CANCELLED
+  notes          String?
+  totalPrice     Int      // Итоговая цена в копейках
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Связи
+  user           User     @relation(fields: [userId], references: [id])
+  master         Master   @relation(fields: [masterId], references: [id])
+  service        Service  @relation(fields: [serviceId], references: [id])
+  
+  @@map("appointments")
+}
+
+// Расписание мастеров
+model MasterSchedule {
+  id        Int     @id @default(autoincrement())
+  masterId  Int
+  dayOfWeek Int     // 0-6 (воскресенье-суббота)
+  startTime String  // HH:mm
+  endTime   String  // HH:mm
+  isWorking Boolean @default(true)
+  
+  // Связи
+  master    Master  @relation(fields: [masterId], references: [id])
+  
+  @@unique([masterId, dayOfWeek])
+  @@map("master_schedules")
+}
+
+// Связь мастеров и услуг
+model MasterService {
+  id        Int @id @default(autoincrement())
+  masterId Int
+  serviceId Int
+  
+  // Связи
+  master   Master  @relation(fields: [masterId], references: [id])
+  service  Service @relation(fields: [serviceId], references: [id])
+  
+  @@unique([masterId, serviceId])
+  @@map("master_services")
+}
+
+// Отзывы клиентов
+model Review {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  masterId  Int
+  rating    Int     // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  
+  // Связи
+  user      User    @relation(fields: [userId], references: [id])
+  master    Master  @relation(fields: [masterId], references: [id])
+  
+  @@map("reviews")
+}
+
+// Администраторы
+model Admin {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique
+  name       String
+  role       String   @default("MANAGER") // SUPER_ADMIN, MANAGER, RECEPTIONIST
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  
+  @@map("admins")
+}
+
+// Уведомления
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  type      String   // APPOINTMENT_REMINDER, APPOINTMENT_CONFIRMED, APPOINTMENT_CANCELLED, PROMOTION, SYSTEM
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  sentAt    DateTime @default(now())
+  
+  @@map("notifications")
+}
+
+// Enums заменены на строки для совместимости с SQLite

@@ -1,67 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { NeonButton } from '@/components/ui/neon-button';
 import { useTelegram } from '@/hooks/useTelegram';
+import { api } from '@/lib/api';
+import { formatPrice } from '@/lib/utils';
 
-// Моковые данные для записей
-const mockAppointments = [
-  {
-    id: 1,
-    master: {
-      name: 'Анна Иванова',
-      specialization: 'Мастер маникюра',
-      avatar: '👩‍🎨',
-      rating: 4.9
-    },
-    service: {
-      name: 'Маникюр + покрытие',
-      duration: '90 мин',
-      price: 2500
-    },
-    date: '2024-01-15',
-    time: '14:00',
-    status: 'confirmed',
-    notes: 'Французский маникюр'
-  },
-  {
-    id: 2,
-    master: {
-      name: 'Мария Петрова',
-      specialization: 'Мастер бровей',
-      avatar: '👩‍💼',
-      rating: 4.8
-    },
-    service: {
-      name: 'Коррекция бровей',
-      duration: '30 мин',
-      price: 1000
-    },
-    date: '2024-01-18',
-    time: '16:30',
-    status: 'pending',
-    notes: 'Форма по типу лица'
-  },
-  {
-    id: 3,
-    master: {
-      name: 'Елена Смирнова',
-      specialization: 'Мастер педикюра',
-      avatar: '👩‍⚕️',
-      rating: 4.7
-    },
-    service: {
-      name: 'Педикюр классический',
-      duration: '120 мин',
-      price: 3000
-    },
-    date: '2024-01-20',
-    time: '11:00',
-    status: 'confirmed',
-    notes: 'С покрытием гель-лаком'
-  }
-];
+// Начинаем с пустого списка — подтягиваем из API
+const mockAppointments: any[] = [];
 
 const statusConfig = {
   confirmed: {
@@ -81,19 +28,56 @@ const statusConfig = {
     color: 'text-red-400',
     bgColor: 'bg-red-500/20',
     borderColor: 'border-red-400/30'
+  },
+  completed: {
+    label: 'Завершена',
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/20',
+    borderColor: 'border-blue-400/30'
   }
 };
 
 export default function AppointmentsPage() {
   const { hapticFeedback } = useTelegram();
   const [selectedTab, setSelectedTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [appointments, setAppointments] = useState<any[]>([]);
 
-  const upcomingAppointments = mockAppointments.filter(apt => 
-    new Date(apt.date) >= new Date() && apt.status !== 'cancelled'
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.getMyAppointments();
+        if (res.success && res.data) {
+          const normalized = res.data.map((apt: any) => ({
+            id: apt.id,
+            master: {
+              name: apt.master?.name,
+              specialization: apt.master?.specialization,
+              avatar: '👤'
+            },
+            service: {
+              name: apt.service?.name,
+              duration: `${apt.service?.duration || 0} мин`,
+              price: apt.service?.price || 0
+            },
+            date: apt.appointmentDate,
+            time: new Date(apt.appointmentDate).toTimeString().slice(0,5),
+            status: String(apt.status).toLowerCase(),
+            notes: apt.notes
+          }));
+          setAppointments(normalized);
+        }
+      } catch (e) {
+        // оставим пустой список в случае ошибки
+      }
+    })();
+  }, []);
+
+  const upcomingAppointments = (appointments.length ? appointments : mockAppointments).filter(apt => 
+    new Date(apt.date) >= new Date() && apt.status !== 'cancelled' && apt.status !== 'completed'
   );
   
-  const pastAppointments = mockAppointments.filter(apt => 
-    new Date(apt.date) < new Date() || apt.status === 'cancelled'
+  const pastAppointments = (appointments.length ? appointments : mockAppointments).filter(apt => 
+    new Date(apt.date) < new Date() || apt.status === 'cancelled' || apt.status === 'completed'
   );
 
   const formatDate = (dateString: string) => {
@@ -105,13 +89,7 @@ export default function AppointmentsPage() {
     });
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
-      minimumFractionDigits: 0
-    }).format(price);
-  };
+  // цена форматируется глобальной утилитой
 
   const handleTabChange = (tab: 'upcoming' | 'past') => {
     setSelectedTab(tab);
@@ -190,7 +168,7 @@ export default function AppointmentsPage() {
             </div>
           ) : (
             currentAppointments.map((appointment) => {
-              const status = statusConfig[appointment.status as keyof typeof statusConfig];
+              const status = statusConfig[appointment.status as keyof typeof statusConfig] || statusConfig.pending;
               
               return (
                 <div
@@ -198,10 +176,30 @@ export default function AppointmentsPage() {
                   className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-5 animate-fade-in"
                 >
                   {/* Заголовок с мастером и статусом */}
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center mb-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-lg">
-                        {appointment.master.avatar}
+                      <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white shadow-lg border border-white/20">
+                        {/* Стильный силуэт пользователя вместо эмодзи */}
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="drop-shadow-[0_2px_6px_rgba(0,0,0,0.4)]"
+                          aria-hidden
+                        >
+                          <path
+                            d="M12 12c2.761 0 5-2.239 5-5S14.761 2 12 2 7 4.239 7 7s2.239 5 5 5Z"
+                            fill="currentColor"
+                            fillOpacity="0.95"
+                          />
+                          <path
+                            d="M4 20.5C4 17.462 7.582 15 12 15s8 2.462 8 5.5c0 .828-.672 1.5-1.5 1.5h-13C4.672 22 4 21.328 4 20.5Z"
+                            fill="currentColor"
+                            fillOpacity="0.85"
+                          />
+                        </svg>
                       </div>
                       <div>
                         <h3 className="font-semibold text-white drop-shadow-sm">
@@ -213,36 +211,36 @@ export default function AppointmentsPage() {
                       </div>
                     </div>
                     
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${status.bgColor} ${status.color} border ${status.borderColor}`}>
+                    <div className={`ml-auto px-3 py-1 rounded-full text-[11px] leading-tight font-medium text-center whitespace-nowrap ${status.bgColor} ${status.color} border ${status.borderColor}`}>
                       {status.label}
                     </div>
                   </div>
 
                   {/* Информация о записи */}
                   <div className="space-y-3 mb-4">
-                    <div className="flex items-center justify-between">
+                    <div className="grid grid-cols-2 gap-3 items-center">
                       <span className="text-white/70">Услуга:</span>
-                      <span className="font-medium text-white">{appointment.service.name}</span>
+                      <span className="font-medium text-white text-right">{appointment.service.name}</span>
                     </div>
-                    
-                    <div className="flex items-center justify-between">
+
+                    <div className="grid grid-cols-2 gap-3 items-center">
                       <span className="text-white/70">Дата:</span>
-                      <span className="font-medium text-white">{formatDate(appointment.date)}</span>
+                      <span className="font-medium text-white text-right">{formatDate(appointment.date)}</span>
                     </div>
-                    
-                    <div className="flex items-center justify-between">
+
+                    <div className="grid grid-cols-2 gap-3 items-center">
                       <span className="text-white/70">Время:</span>
-                      <span className="font-medium text-white">{appointment.time}</span>
+                      <span className="font-medium text-white text-right tabular-nums">{appointment.time}</span>
                     </div>
-                    
-                    <div className="flex items-center justify-between">
+
+                    <div className="grid grid-cols-2 gap-3 items-center">
                       <span className="text-white/70">Длительность:</span>
-                      <span className="font-medium text-white">{appointment.service.duration}</span>
+                      <span className="font-medium text-white text-right">{appointment.service.duration}</span>
                     </div>
-                    
-                    <div className="flex items-center justify-between">
+
+                    <div className="grid grid-cols-2 gap-3 items-center">
                       <span className="text-white/70">Стоимость:</span>
-                      <span className="font-bold text-green-400 text-lg">{formatPrice(appointment.service.price)}</span>
+                      <span className="font-bold text-green-400 text-lg text-right">{formatPrice(appointment.service.price)}</span>
                     </div>
                     
                     {appointment.notes && (
@@ -280,16 +278,24 @@ export default function AppointmentsPage() {
           )}
         </div>
 
-        {/* Кнопка записи */}
+        {/* Кнопки действий */}
         {selectedTab === 'upcoming' && (
-          <div className="mt-6">
+          <div className="mt-6 space-y-3">
             <NeonButton
               variant="salon"
               size="xl"
               className="w-full py-4 text-lg font-bold hover:scale-105 active:scale-95 transition-all duration-300"
-              onClick={() => window.location.href = '/booking'}
+              onClick={() => (window.location.href = '/booking')}
             >
-              📅 Записаться на процедуру
+              📅 Записаться
+            </NeonButton>
+            <NeonButton
+              variant="salon"
+              size="xl"
+              className="w-full py-4 text-lg font-bold hover:scale-105 active:scale-95 transition-all duration-300"
+              onClick={() => (window.location.href = '/')}
+            >
+              🏠 На главный экран
             </NeonButton>
           </div>
         )}

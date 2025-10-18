@@ -7,11 +7,13 @@ export function cn(...inputs: ClassValue[]) {
 
 // Форматирование цены
 export function formatPrice(price: number): string {
+  // В БД цена хранится в копейках → переводим в рубли
+  const rubles = price / 100;
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: 'RUB',
     minimumFractionDigits: 0,
-  }).format(price);
+  }).format(rubles);
 }
 
 // Форматирование времени
