@@ -92,8 +92,98 @@ export default function AdminPage() {
         activeServices: 0
       });
 
-      // Временно отключаем загрузку данных для диагностики
-      console.log('⚠️ Временно отключаем загрузку данных для диагностики');
+      // Включаем загрузку данных с улучшенной обработкой ошибок
+      console.log('🔄 Включаем загрузку данных с улучшенной обработкой ошибок');
+
+      // Загружаем статистику дашборда
+      try {
+        console.log('🔄 Загружаем dashboard...');
+        const dashboardResponse = await adminApi.getDashboardStats();
+        console.log('📊 Dashboard response:', dashboardResponse);
+        if (dashboardResponse.success && dashboardResponse.data) {
+          setStats(dashboardResponse.data);
+          console.log('✅ Dashboard загружен успешно');
+        } else {
+          console.log('⚠️ Dashboard не загружен, используем значения по умолчанию');
+        }
+      } catch (error) {
+        console.error('❌ Ошибка загрузки dashboard:', error);
+        console.log('⚠️ Продолжаем с значениями по умолчанию');
+      }
+
+      // Загружаем данные для меню
+      console.log('🔄 Загружаем данные для меню...');
+      const [mastersResponse, servicesResponse, appointmentsResponse] = await Promise.allSettled([
+        adminApi.getMasters(),
+        adminApi.getServices(),
+        adminApi.getAppointments()
+      ]);
+      
+      console.log('📋 Responses:', { mastersResponse, servicesResponse, appointmentsResponse });
+
+      // Обновляем меню с реальными данными
+      console.log('🔄 Обновляем меню с данными...');
+      const updatedMenuItems = baseAdminMenuItems.map(item => {
+        let stats = '';
+        
+        try {
+          switch (item.href) {
+            case '/admin/masters':
+              if (mastersResponse.status === 'fulfilled' && mastersResponse.value.success) {
+                const mastersCount = mastersResponse.value.data?.length || 0;
+                stats = `${mastersCount} мастеров`;
+                console.log(`✅ Мастера: ${mastersCount}`);
+              } else {
+                stats = 'Ошибка загрузки';
+                console.log('❌ Ошибка загрузки мастеров');
+              }
+              break;
+            case '/admin/services':
+              if (servicesResponse.status === 'fulfilled' && servicesResponse.value.success) {
+                const servicesCount = servicesResponse.value.data?.length || 0;
+                stats = `${servicesCount} услуг`;
+                console.log(`✅ Услуги: ${servicesCount}`);
+              } else {
+                stats = 'Ошибка загрузки';
+                console.log('❌ Ошибка загрузки услуг');
+              }
+              break;
+            case '/admin/appointments':
+              if (appointmentsResponse.status === 'fulfilled' && appointmentsResponse.value.success) {
+                const todayAppointments = appointmentsResponse.value.data?.filter((apt: any) => {
+                  const aptDate = new Date(apt.appointmentDate);
+                  const today = new Date();
+                  return aptDate.toDateString() === today.toDateString();
+                }).length || 0;
+                stats = `${todayAppointments} сегодня`;
+                console.log(`✅ Записи: ${todayAppointments} сегодня`);
+              } else {
+                stats = 'Ошибка загрузки';
+                console.log('❌ Ошибка загрузки записей');
+              }
+              break;
+            case '/admin/notifications':
+              stats = 'Активны';
+              break;
+            case '/admin/recommendations':
+              stats = '5 активных';
+              break;
+            case '/admin/bonuses':
+              stats = '15% скидка';
+              break;
+            default:
+              stats = '';
+          }
+        } catch (menuError) {
+          console.error(`❌ Ошибка обработки меню для ${item.href}:`, menuError);
+          stats = 'Ошибка';
+        }
+
+        return { ...item, stats };
+      });
+
+      setAdminMenuItems(updatedMenuItems);
+      console.log('✅ Админ панель загружена успешно');
       setLoading(false);
     } catch (err) {
       console.error('❌ Критическая ошибка при загрузке статистики:', err);
