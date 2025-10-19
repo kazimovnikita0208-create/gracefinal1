@@ -68,12 +68,14 @@ const statusLabels = {
 export default function AdminAppointmentsPage() {
   const { hapticFeedback } = useTelegram();
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [selectedDate, setSelectedDate] = useState('2024-01-15');
+  const [selectedDate, setSelectedDate] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
+        setLoading(true);
         const res = await adminApi.getAppointments();
         if (res.success && res.data) {
           const normalized = res.data.map((apt: any) => ({
@@ -92,7 +94,9 @@ export default function AdminAppointmentsPage() {
           setAppointments(normalized);
         }
       } catch (e) {
-        // оставим пустой список в случае ошибки
+        console.error('Ошибка при загрузке записей:', e);
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
@@ -102,6 +106,9 @@ export default function AdminAppointmentsPage() {
     const statusMatch = selectedStatus === 'all' || appointment.status === selectedStatus;
     return dateMatch && statusMatch;
   });
+
+  // Получаем уникальные даты для фильтра
+  const uniqueDates = [...new Set(appointments.map(apt => apt.date))].sort();
 
   const handleStatusChange = async (appointmentId: number, newStatus: string) => {
     hapticFeedback.impact('light');
@@ -167,8 +174,14 @@ export default function AdminAppointmentsPage() {
               className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
             >
               <option value="all">Все даты</option>
-              <option value="2024-01-15">15 января</option>
-              <option value="2024-01-16">16 января</option>
+              {uniqueDates.map(date => (
+                <option key={date} value={date}>
+                  {new Date(date).toLocaleDateString('ru-RU', {
+                    day: 'numeric',
+                    month: 'long'
+                  })}
+                </option>
+              ))}
             </select>
           </div>
           
@@ -190,9 +203,22 @@ export default function AdminAppointmentsPage() {
           </div>
         </div>
 
+        {/* Состояние загрузки */}
+        {loading && (
+          <div className="text-center py-8">
+            <div className="text-white/60">Загрузка записей...</div>
+          </div>
+        )}
+
         {/* Список записей */}
-        <div className="space-y-4 mb-6">
-          {filteredAppointments.map((appointment, index) => (
+        {!loading && (
+          <div className="space-y-4 mb-6">
+            {filteredAppointments.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-white/60">Записи не найдены</div>
+              </div>
+            ) : (
+              filteredAppointments.map((appointment, index) => (
             <div
               key={appointment.id}
               className="bg-gray-800/50 backdrop-blur-sm border border-gray-600/30 rounded-xl p-4 hover:border-gray-500/50 transition-all duration-200"
@@ -301,8 +327,10 @@ export default function AdminAppointmentsPage() {
                 </NeonButton>
               </div>
             </div>
-          ))}
-        </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* Статистика */}
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
