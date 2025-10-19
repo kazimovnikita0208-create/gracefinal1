@@ -8,48 +8,7 @@ import { useTelegram } from '@/hooks/useTelegram';
 import { formatPrice } from '@/lib/utils';
 import { adminApi } from '@/lib/adminApi';
 
-// Моковые данные записей
-const mockAppointments = [
-  {
-    id: 1,
-    clientName: 'Анна Петрова',
-    clientPhone: '+7 (999) 123-45-67',
-    masterName: 'Анна Иванова',
-    serviceName: 'Маникюр классический',
-    date: '2024-01-15',
-    time: '14:00',
-    duration: 60,
-    price: 2500,
-    status: 'confirmed',
-    notes: 'Предпочитает розовые оттенки'
-  },
-  {
-    id: 2,
-    clientName: 'Мария Сидорова',
-    clientPhone: '+7 (999) 234-56-78',
-    masterName: 'Мария Петрова',
-    serviceName: 'Стрижка и укладка',
-    date: '2024-01-15',
-    time: '16:30',
-    duration: 90,
-    price: 3500,
-    status: 'pending',
-    notes: 'Первая запись'
-  },
-  {
-    id: 3,
-    clientName: 'Елена Козлова',
-    clientPhone: '+7 (999) 345-67-89',
-    masterName: 'Елена Сидорова',
-    serviceName: 'Чистка лица',
-    date: '2024-01-16',
-    time: '10:00',
-    duration: 120,
-    price: 4500,
-    status: 'cancelled',
-    notes: 'Отмена по просьбе клиента'
-  }
-];
+// Удаляем моковые данные - будем использовать реальные данные из API
 
 const statusColors = {
   confirmed: 'bg-green-500',
@@ -76,8 +35,14 @@ export default function AdminAppointmentsPage() {
     (async () => {
       try {
         setLoading(true);
+        console.log('🔄 Загружаем записи для страницы записей...');
         const res = await adminApi.getAppointments();
+        console.log('📋 Appointments API response:', res);
+        
         if (res.success && res.data) {
+          console.log('📋 Raw appointments data:', res.data);
+          console.log('📋 Appointments count:', res.data.length);
+          
           const normalized = res.data.map((apt: any) => ({
             id: apt.id,
             clientName: `${apt.user?.firstName || ''} ${apt.user?.lastName || ''}`.trim(),
@@ -91,10 +56,15 @@ export default function AdminAppointmentsPage() {
             status: String(apt.status).toLowerCase(),
             notes: apt.notes || ''
           }));
+          
+          console.log('📋 Normalized appointments:', normalized);
           setAppointments(normalized);
+          console.log('✅ Записи загружены успешно:', normalized.length);
+        } else {
+          console.log('⚠️ Нет данных или ошибка API:', res);
         }
       } catch (e) {
-        console.error('Ошибка при загрузке записей:', e);
+        console.error('❌ Ошибка при загрузке записей:', e);
       } finally {
         setLoading(false);
       }

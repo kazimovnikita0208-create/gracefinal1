@@ -150,6 +150,9 @@ export default function AdminPage() {
               break;
             case '/admin/appointments':
               if (appointmentsResponse.status === 'fulfilled' && appointmentsResponse.value.success) {
+                console.log('📋 Appointments data:', appointmentsResponse.value.data);
+                console.log('📋 Appointments count:', appointmentsResponse.value.data?.length);
+                
                 const todayAppointments = appointmentsResponse.value.data?.filter((apt: any) => {
                   const aptDate = new Date(apt.appointmentDate);
                   const today = new Date();
@@ -159,7 +162,7 @@ export default function AdminPage() {
                 console.log(`✅ Записи: ${todayAppointments} сегодня`);
               } else {
                 stats = 'Ошибка загрузки';
-                console.log('❌ Ошибка загрузки записей');
+                console.log('❌ Ошибка загрузки записей:', appointmentsResponse);
               }
               break;
             case '/admin/notifications':
