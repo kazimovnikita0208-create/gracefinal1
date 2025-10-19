@@ -108,7 +108,7 @@ export default function AdminAppointmentsPage() {
   });
 
   // Получаем уникальные даты для фильтра
-  const uniqueDates = [...new Set(appointments.map(apt => apt.date))].sort();
+  const uniqueDates = Array.from(new Set(appointments.map(apt => apt.date))).sort();
 
   const handleStatusChange = async (appointmentId: number, newStatus: string) => {
     hapticFeedback.impact('light');
