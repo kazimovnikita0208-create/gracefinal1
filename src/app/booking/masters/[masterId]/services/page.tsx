@@ -133,7 +133,7 @@ export default function MasterServicesPage() {
                   <div className="flex items-center space-x-1">
                     <Star className="w-3 h-3 text-yellow-400 fill-current" />
                     <span className="text-white/80 text-xs drop-shadow-sm font-medium">
-                      {(master as any).rating || 0}
+                      5.0
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">

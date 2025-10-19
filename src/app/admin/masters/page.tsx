@@ -245,7 +245,7 @@ export default function AdminMastersPage() {
                   <div className="flex items-center space-x-3 text-xs text-white/80">
                     <div className="flex items-center space-x-1">
                       <StyledIcon name="star" size="sm" variant="accent" />
-                      <span>{master.rating || 0}</span>
+                      <span>5.0</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <StyledIcon name="briefcase" size="sm" variant="default" />
