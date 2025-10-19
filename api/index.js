@@ -13,15 +13,49 @@ console.log('Используем PostgreSQL с Session Pooler');
 
 let prisma;
 
-try {
-  prisma = new PrismaClient({
-    log: ['query', 'info', 'warn', 'error'],
-  });
-  console.log('✅ Prisma Client создан успешно');
-} catch (error) {
-  console.error('❌ Ошибка создания Prisma Client:', error);
-  throw error;
+// Функция для создания Prisma Client
+function createPrismaClient() {
+  try {
+    const client = new PrismaClient({
+      log: ['query', 'info', 'warn', 'error'],
+    });
+    console.log('✅ Prisma Client создан успешно');
+    return client;
+  } catch (error) {
+    console.error('❌ Ошибка создания Prisma Client:', error);
+    throw error;
+  }
 }
+
+// Функция для безопасного получения Prisma Client
+async function getPrismaClient() {
+  try {
+    if (!prisma) {
+      prisma = createPrismaClient();
+    }
+    
+    // Проверяем подключение
+    await prisma.$connect();
+    return prisma;
+  } catch (error) {
+    console.error('❌ Ошибка подключения к базе данных:', error);
+    // Пытаемся пересоздать клиент
+    try {
+      if (prisma) {
+        await prisma.$disconnect();
+      }
+    } catch (disconnectError) {
+      console.error('Ошибка при отключении:', disconnectError);
+    }
+    
+    prisma = createPrismaClient();
+    await prisma.$connect();
+    return prisma;
+  }
+}
+
+// Инициализируем Prisma Client
+prisma = createPrismaClient();
 
 // Функция инициализации базы данных
 async function initializeDatabase() {
@@ -261,18 +295,12 @@ app.get('/api/db-test', async (req, res) => {
 app.get('/api/masters', async (req, res) => {
   try {
     console.log('🔍 Получаем мастеров...');
-    
-    // Проверяем подключение к базе данных
-    if (!prisma) {
-      console.error('❌ Prisma Client не инициализирован');
-      return res.status(500).json({
-        success: false,
-        error: 'Prisma Client не инициализирован'
-      });
-    }
 
-    console.log('✅ Prisma Client доступен, выполняем запрос...');
-    const masters = await prisma.master.findMany({
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+    
+    const masters = await prismaClient.master.findMany({
       where: {
         isActive: true
       },
@@ -305,7 +333,13 @@ app.get('/api/masters', async (req, res) => {
 app.get('/api/masters/:id', async (req, res) => {
   try {
     const masterId = parseInt(req.params.id);
-    const master = await prisma.master.findFirst({
+    console.log('🔍 Получаем мастера с ID:', masterId);
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const master = await prismaClient.master.findFirst({
       where: {
         id: masterId,
         isActive: true
@@ -333,15 +367,85 @@ app.get('/api/masters/:id', async (req, res) => {
       });
     }
 
+    console.log('✅ Мастер найден:', master.name);
     res.json({
       success: true,
       data: master
     });
   } catch (error) {
-    console.error('Ошибка при получении мастера:', error);
+    console.error('❌ Ошибка при получении мастера:', error);
     res.status(500).json({
       success: false,
-      error: 'Ошибка сервера при получении мастера'
+      error: 'Ошибка сервера при получении мастера',
+      details: error.message
+    });
+  }
+});
+
+// Get master services
+app.get('/api/masters/:id/services', async (req, res) => {
+  try {
+    const masterId = parseInt(req.params.id);
+    console.log('🔍 Получаем услуги мастера с ID:', masterId);
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const master = await prismaClient.master.findFirst({
+      where: {
+        id: masterId,
+        isActive: true
+      }
+    });
+
+    if (!master) {
+      return res.status(404).json({
+        success: false,
+        error: 'Мастер не найден'
+      });
+    }
+
+    const services = await prismaClient.service.findMany({
+      where: {
+        isActive: true,
+        masterServices: {
+          some: {
+            masterId: masterId
+          }
+        }
+      },
+      include: {
+        masterServices: {
+          where: {
+            masterId: masterId
+          },
+          include: {
+            master: true
+          }
+        },
+        _count: {
+          select: {
+            appointments: true
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    console.log('✅ Услуги мастера получены:', services.length, 'записей');
+    res.json({
+      success: true,
+      data: services
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при получении услуг мастера:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при получении услуг мастера',
+      details: error.message
     });
   }
 });
@@ -349,7 +453,13 @@ app.get('/api/masters/:id', async (req, res) => {
 // Services routes
 app.get('/api/services', async (req, res) => {
   try {
-    const services = await prisma.service.findMany({
+    console.log('🔍 Получаем услуги...');
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const services = await prismaClient.service.findMany({
       where: {
         isActive: true
       },
@@ -370,15 +480,17 @@ app.get('/api/services', async (req, res) => {
       }
     });
 
+    console.log('✅ Услуги получены:', services.length, 'записей');
     res.json({
       success: true,
       data: services
     });
   } catch (error) {
-    console.error('Ошибка при получении услуг:', error);
+    console.error('❌ Ошибка при получении услуг:', error);
     res.status(500).json({
       success: false,
-      error: 'Ошибка сервера при получении услуг'
+      error: 'Ошибка сервера при получении услуг',
+      details: error.message
     });
   }
 });
@@ -387,7 +499,13 @@ app.get('/api/services', async (req, res) => {
 app.get('/api/services/:id', async (req, res) => {
   try {
     const serviceId = parseInt(req.params.id);
-    const service = await prisma.service.findFirst({
+    console.log('🔍 Получаем услугу с ID:', serviceId);
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const service = await prismaClient.service.findFirst({
       where: {
         id: serviceId,
         isActive: true
@@ -413,15 +531,17 @@ app.get('/api/services/:id', async (req, res) => {
       });
     }
 
+    console.log('✅ Услуга найдена:', service.name);
     res.json({
       success: true,
       data: service
     });
   } catch (error) {
-    console.error('Ошибка при получении услуги:', error);
+    console.error('❌ Ошибка при получении услуги:', error);
     res.status(500).json({
       success: false,
-      error: 'Ошибка сервера при получении услуги'
+      error: 'Ошибка сервера при получении услуги',
+      details: error.message
     });
   }
 });
@@ -430,6 +550,7 @@ app.get('/api/services/:id', async (req, res) => {
 app.get('/api/appointments', async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
+    console.log('🔍 Получаем записи...');
     
     const skip = (Number(page) - 1) * Number(limit);
     
@@ -439,7 +560,11 @@ app.get('/api/appointments', async (req, res) => {
       where.status = status;
     }
 
-    const appointments = await prisma.appointment.findMany({
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const appointments = await prismaClient.appointment.findMany({
       where,
       include: {
         master: true,
@@ -452,8 +577,9 @@ app.get('/api/appointments', async (req, res) => {
       take: Number(limit)
     });
 
-    const total = await prisma.appointment.count({ where });
+    const total = await prismaClient.appointment.count({ where });
 
+    console.log('✅ Записи получены:', appointments.length, 'записей');
     res.json({
       success: true,
       data: appointments,
@@ -465,10 +591,11 @@ app.get('/api/appointments', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Ошибка при получении записей:', error);
+    console.error('❌ Ошибка при получении записей:', error);
     res.status(500).json({
       success: false,
-      error: 'Ошибка сервера при получении записей'
+      error: 'Ошибка сервера при получении записей',
+      details: error.message
     });
   }
 });
@@ -485,7 +612,11 @@ app.post('/api/appointments', async (req, res) => {
       });
     }
 
-    const master = await prisma.master.findUnique({
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const master = await prismaClient.master.findUnique({
       where: { id: parseInt(masterId) }
     });
 
@@ -496,7 +627,7 @@ app.post('/api/appointments', async (req, res) => {
       });
     }
 
-    const service = await prisma.service.findUnique({
+    const service = await prismaClient.service.findUnique({
       where: { id: parseInt(serviceId) }
     });
 
@@ -515,7 +646,7 @@ app.post('/api/appointments', async (req, res) => {
       });
     }
 
-    const appointment = await prisma.appointment.create({
+    const appointment = await prismaClient.appointment.create({
       data: {
         userId: 1, // Временно для тестирования
         masterId: parseInt(masterId),
@@ -546,12 +677,18 @@ app.post('/api/appointments', async (req, res) => {
 // Admin routes
 app.get('/api/admin/dashboard', async (req, res) => {
   try {
+    console.log('🔍 Получаем админ дашборд...');
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const todayAppointments = await prisma.appointment.count({
+    const todayAppointments = await prismaClient.appointment.count({
       where: {
         appointmentDate: {
           gte: today,
@@ -560,12 +697,12 @@ app.get('/api/admin/dashboard', async (req, res) => {
       }
     });
 
-    const totalAppointments = await prisma.appointment.count();
-    const totalMasters = await prisma.master.count();
-    const totalServices = await prisma.service.count();
-    const totalUsers = await prisma.user.count();
+    const totalAppointments = await prismaClient.appointment.count();
+    const totalMasters = await prismaClient.master.count();
+    const totalServices = await prismaClient.service.count();
+    const totalUsers = await prismaClient.user.count();
 
-    const todayRevenue = await prisma.appointment.aggregate({
+    const todayRevenue = await prismaClient.appointment.aggregate({
       where: {
         appointmentDate: {
           gte: today,
