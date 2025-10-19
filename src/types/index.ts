@@ -16,7 +16,6 @@ export interface Master {
   specialization: string;
   description?: string;
   photoUrl?: string;
-  rating?: number;
   experience?: number;
   services?: Array<{
     id: number;

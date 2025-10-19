@@ -37,7 +37,6 @@ model Master {
   description   String?
   photoUrl      String?
   experience    Int?     // Опыт в годах
-  rating        Float    @default(0.0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
