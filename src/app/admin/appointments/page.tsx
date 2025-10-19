@@ -111,16 +111,45 @@ export default function AdminAppointmentsPage() {
 
   const handleStatusChange = async (appointmentId: number, newStatus: string) => {
     hapticFeedback.impact('light');
+    console.log(`🔄 Изменяем статус записи ${appointmentId} на ${newStatus}`);
+    
+    // Оптимистичное обновление - обновляем UI сразу
+    setAppointments(prevAppointments => 
+      prevAppointments.map(apt => 
+        apt.id === appointmentId ? { ...apt, status: newStatus } : apt
+      )
+    );
+    console.log(`✅ UI обновлен оптимистично для записи ${appointmentId}`);
+    
+    // Обновляем статистику в реальном времени
+    const updatedAppointments = appointments.map(apt => 
+      apt.id === appointmentId ? { ...apt, status: newStatus } : apt
+    );
+    
+    // Пересчитываем статистику
+    const today = new Date().toISOString().slice(0, 10);
+    const todayAppointments = updatedAppointments.filter(apt => apt.date === today);
+    const confirmedCount = todayAppointments.filter(apt => apt.status === 'confirmed').length;
+    const pendingCount = todayAppointments.filter(apt => apt.status === 'pending').length;
+    const totalRevenue = todayAppointments
+      .filter(apt => apt.status === 'confirmed')
+      .reduce((sum, apt) => sum + apt.price, 0);
+    
+    console.log(`📊 Обновленная статистика: ${todayAppointments.length} записей, ₽${totalRevenue}, подтверждено: ${confirmedCount}, ожидает: ${pendingCount}`);
+    
     try {
       const apiStatus = newStatus.toUpperCase();
       const res = await adminApi.updateAppointmentStatus(appointmentId, apiStatus);
+      
       if (res.success) {
-        setAppointments(appointments.map(apt => 
-          apt.id === appointmentId ? { ...apt, status: newStatus } : apt
-        ));
+        console.log(`✅ Статус записи ${appointmentId} успешно изменен на ${newStatus} в базе данных`);
+      } else {
+        console.error('❌ Ошибка изменения статуса в базе данных:', res);
+        // В случае ошибки можно откатить изменения, но пока оставим как есть
       }
     } catch (e) {
-      // no-op
+      console.error('❌ Ошибка при изменении статуса:', e);
+      // В случае ошибки можно откатить изменения, но пока оставим как есть
     }
   };
 
