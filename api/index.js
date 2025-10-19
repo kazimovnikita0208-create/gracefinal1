@@ -675,6 +675,177 @@ app.post('/api/appointments', async (req, res) => {
 });
 
 // Admin routes
+// Get masters for admin panel
+app.get('/api/admin/masters', async (req, res) => {
+  try {
+    console.log('🔍 Получаем мастеров для админ панели...');
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const masters = await prismaClient.master.findMany({
+      orderBy: {
+        name: 'asc'
+      },
+      include: {
+        _count: {
+          select: {
+            appointments: true,
+            reviews: true
+          }
+        }
+      }
+    });
+
+    console.log('✅ Мастера для админ панели получены:', masters.length, 'записей');
+    res.json({
+      success: true,
+      data: masters
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при получении мастеров для админ панели:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при получении мастеров',
+      details: error.message
+    });
+  }
+});
+
+// Get services for admin panel
+app.get('/api/admin/services', async (req, res) => {
+  try {
+    console.log('🔍 Получаем услуги для админ панели...');
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const services = await prismaClient.service.findMany({
+      include: {
+        masterServices: {
+          include: {
+            master: true
+          }
+        },
+        _count: {
+          select: {
+            appointments: true
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    console.log('✅ Услуги для админ панели получены:', services.length, 'записей');
+    res.json({
+      success: true,
+      data: services
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при получении услуг для админ панели:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при получении услуг',
+      details: error.message
+    });
+  }
+});
+
+// Get appointments for admin panel
+app.get('/api/admin/appointments', async (req, res) => {
+  try {
+    console.log('🔍 Получаем записи для админ панели...');
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const { status, page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const where = {};
+    if (status) {
+      where.status = status;
+    }
+
+    const appointments = await prismaClient.appointment.findMany({
+      where,
+      include: {
+        master: true,
+        service: true,
+        user: true
+      },
+      orderBy: {
+        appointmentDate: 'desc'
+      },
+      skip,
+      take: Number(limit)
+    });
+
+    const total = await prismaClient.appointment.count({ where });
+
+    console.log('✅ Записи для админ панели получены:', appointments.length, 'записей');
+    res.json({
+      success: true,
+      data: appointments,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при получении записей для админ панели:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при получении записей',
+      details: error.message
+    });
+  }
+});
+
+// Get users for admin panel
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    console.log('🔍 Получаем пользователей для админ панели...');
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const users = await prismaClient.user.findMany({
+      include: {
+        _count: {
+          select: {
+            appointments: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    console.log('✅ Пользователи для админ панели получены:', users.length, 'записей');
+    res.json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при получении пользователей для админ панели:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при получении пользователей',
+      details: error.message
+    });
+  }
+});
+
 app.get('/api/admin/dashboard', async (req, res) => {
   try {
     console.log('🔍 Получаем админ дашборд...');
