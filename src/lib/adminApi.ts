@@ -182,7 +182,7 @@ export const formatPrice = (price: number): string => {
     style: 'currency',
     currency: 'RUB',
     minimumFractionDigits: 0,
-  }).format(price / 100);
+  }).format(price);
 };
 
 export const formatDuration = (minutes: number): string => {

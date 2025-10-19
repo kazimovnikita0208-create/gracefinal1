@@ -846,6 +846,335 @@ app.get('/api/admin/users', async (req, res) => {
   }
 });
 
+// Create master
+app.post('/api/admin/masters', async (req, res) => {
+  try {
+    const { name, specialization, description, experience, photoUrl, serviceIds } = req.body;
+    console.log('🔍 Создаем мастера...');
+
+    if (!name || !specialization) {
+      return res.status(400).json({
+        success: false,
+        error: 'Имя и специализация обязательны'
+      });
+    }
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const master = await prismaClient.master.create({
+      data: {
+        name,
+        specialization,
+        description: description || '',
+        experience: experience || 0,
+        photoUrl: photoUrl || '/images/masters/default.jpg',
+        isActive: true
+      }
+    });
+
+    // Если указаны услуги, создаем связи
+    if (serviceIds && serviceIds.length > 0) {
+      await prismaClient.masterService.createMany({
+        data: serviceIds.map(serviceId => ({
+          masterId: master.id,
+          serviceId: serviceId
+        }))
+      });
+    }
+
+    console.log('✅ Мастер создан:', master.name);
+    res.status(201).json({
+      success: true,
+      data: master
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при создании мастера:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при создании мастера',
+      details: error.message
+    });
+  }
+});
+
+// Update master
+app.put('/api/admin/masters/:id', async (req, res) => {
+  try {
+    const masterId = parseInt(req.params.id);
+    const { name, specialization, description, experience, photoUrl, serviceIds } = req.body;
+    console.log('🔍 Обновляем мастера с ID:', masterId);
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const master = await prismaClient.master.update({
+      where: { id: masterId },
+      data: {
+        name,
+        specialization,
+        description,
+        experience,
+        photoUrl
+      }
+    });
+
+    // Обновляем связи с услугами
+    if (serviceIds) {
+      // Удаляем старые связи
+      await prismaClient.masterService.deleteMany({
+        where: { masterId: masterId }
+      });
+
+      // Создаем новые связи
+      if (serviceIds.length > 0) {
+        await prismaClient.masterService.createMany({
+          data: serviceIds.map(serviceId => ({
+            masterId: masterId,
+            serviceId: serviceId
+          }))
+        });
+      }
+    }
+
+    console.log('✅ Мастер обновлен:', master.name);
+    res.json({
+      success: true,
+      data: master
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при обновлении мастера:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при обновлении мастера',
+      details: error.message
+    });
+  }
+});
+
+// Delete master
+app.delete('/api/admin/masters/:id', async (req, res) => {
+  try {
+    const masterId = parseInt(req.params.id);
+    console.log('🔍 Удаляем мастера с ID:', masterId);
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    // Удаляем связи с услугами
+    await prismaClient.masterService.deleteMany({
+      where: { masterId: masterId }
+    });
+
+    // Удаляем мастера
+    await prismaClient.master.delete({
+      where: { id: masterId }
+    });
+
+    console.log('✅ Мастер удален:', masterId);
+    res.json({
+      success: true,
+      message: 'Мастер успешно удален'
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при удалении мастера:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при удалении мастера',
+      details: error.message
+    });
+  }
+});
+
+// Create service
+app.post('/api/admin/services', async (req, res) => {
+  try {
+    const { name, description, price, duration, category, masterIds } = req.body;
+    console.log('🔍 Создаем услугу...');
+
+    if (!name || !price || !duration) {
+      return res.status(400).json({
+        success: false,
+        error: 'Название, цена и длительность обязательны'
+      });
+    }
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const service = await prismaClient.service.create({
+      data: {
+        name,
+        description: description || '',
+        price: parseInt(price),
+        duration: parseInt(duration),
+        category: category || 'other',
+        isActive: true
+      }
+    });
+
+    // Если указаны мастера, создаем связи
+    if (masterIds && masterIds.length > 0) {
+      await prismaClient.masterService.createMany({
+        data: masterIds.map(masterId => ({
+          masterId: masterId,
+          serviceId: service.id
+        }))
+      });
+    }
+
+    console.log('✅ Услуга создана:', service.name);
+    res.status(201).json({
+      success: true,
+      data: service
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при создании услуги:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при создании услуги',
+      details: error.message
+    });
+  }
+});
+
+// Update service
+app.put('/api/admin/services/:id', async (req, res) => {
+  try {
+    const serviceId = parseInt(req.params.id);
+    const { name, description, price, duration, category, masterIds } = req.body;
+    console.log('🔍 Обновляем услугу с ID:', serviceId);
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const service = await prismaClient.service.update({
+      where: { id: serviceId },
+      data: {
+        name,
+        description,
+        price: parseInt(price),
+        duration: parseInt(duration),
+        category
+      }
+    });
+
+    // Обновляем связи с мастерами
+    if (masterIds) {
+      // Удаляем старые связи
+      await prismaClient.masterService.deleteMany({
+        where: { serviceId: serviceId }
+      });
+
+      // Создаем новые связи
+      if (masterIds.length > 0) {
+        await prismaClient.masterService.createMany({
+          data: masterIds.map(masterId => ({
+            masterId: masterId,
+            serviceId: serviceId
+          }))
+        });
+      }
+    }
+
+    console.log('✅ Услуга обновлена:', service.name);
+    res.json({
+      success: true,
+      data: service
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при обновлении услуги:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при обновлении услуги',
+      details: error.message
+    });
+  }
+});
+
+// Delete service
+app.delete('/api/admin/services/:id', async (req, res) => {
+  try {
+    const serviceId = parseInt(req.params.id);
+    console.log('🔍 Удаляем услугу с ID:', serviceId);
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    // Удаляем связи с мастерами
+    await prismaClient.masterService.deleteMany({
+      where: { serviceId: serviceId }
+    });
+
+    // Удаляем услугу
+    await prismaClient.service.delete({
+      where: { id: serviceId }
+    });
+
+    console.log('✅ Услуга удалена:', serviceId);
+    res.json({
+      success: true,
+      message: 'Услуга успешно удалена'
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при удалении услуги:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при удалении услуги',
+      details: error.message
+    });
+  }
+});
+
+// Update appointment status
+app.put('/api/admin/appointments/:id/status', async (req, res) => {
+  try {
+    const appointmentId = parseInt(req.params.id);
+    const { status } = req.body;
+    console.log('🔍 Обновляем статус записи с ID:', appointmentId);
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        error: 'Статус обязателен'
+      });
+    }
+
+    // Получаем безопасный Prisma Client
+    const prismaClient = await getPrismaClient();
+    console.log('✅ Prisma Client получен, выполняем запрос...');
+
+    const appointment = await prismaClient.appointment.update({
+      where: { id: appointmentId },
+      data: { status },
+      include: {
+        master: true,
+        service: true,
+        user: true
+      }
+    });
+
+    console.log('✅ Статус записи обновлен:', appointmentId);
+    res.json({
+      success: true,
+      data: appointment
+    });
+  } catch (error) {
+    console.error('❌ Ошибка при обновлении статуса записи:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка сервера при обновлении статуса записи',
+      details: error.message
+    });
+  }
+});
+
 app.get('/api/admin/dashboard', async (req, res) => {
   try {
     console.log('🔍 Получаем админ дашборд...');
