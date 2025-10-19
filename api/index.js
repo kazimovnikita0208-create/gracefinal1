@@ -699,9 +699,20 @@ app.get('/api/admin/masters', async (req, res) => {
     });
 
     console.log('✅ Мастера для админ панели получены:', masters.length, 'записей');
+    
+    // Сериализуем данные, конвертируя BigInt в строки
+    const serializedMasters = masters.map(master => ({
+      ...master,
+      id: master.id.toString(),
+      _count: {
+        appointments: Number(master._count.appointments),
+        reviews: Number(master._count.reviews)
+      }
+    }));
+    
     res.json({
       success: true,
-      data: masters
+      data: serializedMasters
     });
   } catch (error) {
     console.error('❌ Ошибка при получении мастеров для админ панели:', error);
@@ -741,9 +752,30 @@ app.get('/api/admin/services', async (req, res) => {
     });
 
     console.log('✅ Услуги для админ панели получены:', services.length, 'записей');
+    
+    // Сериализуем данные, конвертируя BigInt в строки
+    const serializedServices = services.map(service => ({
+      ...service,
+      id: service.id.toString(),
+      price: Number(service.price),
+      _count: {
+        appointments: Number(service._count.appointments)
+      },
+      masterServices: service.masterServices.map(ms => ({
+        ...ms,
+        id: ms.id.toString(),
+        masterId: ms.masterId.toString(),
+        serviceId: ms.serviceId.toString(),
+        master: ms.master ? {
+          ...ms.master,
+          id: ms.master.id.toString()
+        } : null
+      }))
+    }));
+    
     res.json({
       success: true,
-      data: services
+      data: serializedServices
     });
   } catch (error) {
     console.error('❌ Ошибка при получении услуг для админ панели:', error);
@@ -835,9 +867,32 @@ app.get('/api/admin/appointments', async (req, res) => {
     const total = await prismaClient.appointment.count({ where });
 
     console.log('✅ Записи для админ панели получены:', appointmentsWithRelations.length, 'записей');
+    
+    // Сериализуем данные, конвертируя BigInt в строки
+    const serializedAppointments = appointmentsWithRelations.map(appointment => ({
+      ...appointment,
+      id: appointment.id.toString(),
+      masterId: appointment.masterId.toString(),
+      serviceId: appointment.serviceId.toString(),
+      userId: appointment.userId.toString(),
+      master: appointment.master ? {
+        ...appointment.master,
+        id: appointment.master.id.toString()
+      } : null,
+      service: appointment.service ? {
+        ...appointment.service,
+        id: appointment.service.id.toString(),
+        price: Number(appointment.service.price)
+      } : null,
+      user: appointment.user ? {
+        ...appointment.user,
+        id: appointment.user.id.toString()
+      } : null
+    }));
+
     res.json({
       success: true,
-      data: appointmentsWithRelations,
+      data: serializedAppointments,
       pagination: {
         page: Number(page),
         limit: Number(limit),
