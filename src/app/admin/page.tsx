@@ -80,19 +80,28 @@ export default function AdminPage() {
   const loadStats = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Загружаем статистику админ панели...');
       
       // Загружаем статистику дашборда
-      const dashboardResponse = await adminApi.getDashboardStats();
-      if (dashboardResponse.success && dashboardResponse.data) {
-        setStats(dashboardResponse.data);
+      try {
+        const dashboardResponse = await adminApi.getDashboardStats();
+        console.log('📊 Dashboard response:', dashboardResponse);
+        if (dashboardResponse.success && dashboardResponse.data) {
+          setStats(dashboardResponse.data);
+        }
+      } catch (error) {
+        console.error('❌ Ошибка загрузки dashboard:', error);
       }
 
       // Загружаем данные для меню
+      console.log('🔄 Загружаем данные для меню...');
       const [mastersResponse, servicesResponse, appointmentsResponse] = await Promise.allSettled([
         adminApi.getMasters(),
         adminApi.getServices(),
         adminApi.getAppointments()
       ]);
+      
+      console.log('📋 Responses:', { mastersResponse, servicesResponse, appointmentsResponse });
 
       // Обновляем меню с реальными данными
       const updatedMenuItems = baseAdminMenuItems.map(item => {
@@ -142,8 +151,18 @@ export default function AdminPage() {
       });
 
       setAdminMenuItems(updatedMenuItems);
+      console.log('✅ Админ панель загружена успешно');
     } catch (err) {
-      console.error('Ошибка при загрузке статистики:', err);
+      console.error('❌ Критическая ошибка при загрузке статистики:', err);
+      // Устанавливаем значения по умолчанию при ошибке
+      setStats({
+        todayAppointments: 0,
+        totalAppointments: 0,
+        totalRevenue: 0,
+        averageRating: 0,
+        activeMasters: 0,
+        activeServices: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -152,6 +171,17 @@ export default function AdminPage() {
   const handleCardClick = () => {
     hapticFeedback.impact('light');
   };
+
+  // Обработка критических ошибок
+  if (typeof window !== 'undefined') {
+    window.addEventListener('error', (event) => {
+      console.error('🚨 JavaScript Error:', event.error);
+    });
+    
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('🚨 Unhandled Promise Rejection:', event.reason);
+    });
+  }
 
   return (
     <Layout 
