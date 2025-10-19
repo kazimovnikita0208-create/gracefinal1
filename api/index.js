@@ -2,6 +2,21 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 
+// Глобальная функция для сериализации BigInt
+function serializeBigInt(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return obj.toString();
+  if (Array.isArray(obj)) return obj.map(serializeBigInt);
+  if (typeof obj === 'object') {
+    const result = {};
+    for (const key in obj) {
+      result[key] = serializeBigInt(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+}
+
 const app = express();
 
 // Диагностика подключения к базе данных
@@ -868,56 +883,11 @@ app.get('/api/admin/appointments', async (req, res) => {
 
     console.log('✅ Записи для админ панели получены:', appointmentsWithRelations.length, 'записей');
     
-    // Сериализуем данные, конвертируя BigInt в строки
-    console.log('🔄 Начинаем сериализацию записей...');
-    const serializedAppointments = appointmentsWithRelations.map((appointment, index) => {
-      try {
-        console.log(`🔄 Сериализуем запись ${index + 1}/${appointmentsWithRelations.length}:`, {
-          id: appointment.id,
-          masterId: appointment.masterId,
-          serviceId: appointment.serviceId,
-          userId: appointment.userId
-        });
-
-        const serialized = {
-          ...appointment,
-          id: appointment.id.toString(),
-          masterId: appointment.masterId.toString(),
-          serviceId: appointment.serviceId.toString(),
-          userId: appointment.userId.toString(),
-          master: appointment.master ? {
-            ...appointment.master,
-            id: appointment.master.id.toString()
-          } : null,
-          service: appointment.service ? {
-            ...appointment.service,
-            id: appointment.service.id.toString(),
-            price: Number(appointment.service.price)
-          } : null,
-          user: appointment.user ? {
-            ...appointment.user,
-            id: appointment.user.id.toString()
-          } : null
-        };
-
-        console.log(`✅ Запись ${index + 1} сериализована успешно`);
-        return serialized;
-      } catch (serializeError) {
-        console.error(`❌ Ошибка сериализации записи ${index + 1}:`, serializeError);
-        return {
-          id: appointment.id.toString(),
-          masterId: appointment.masterId.toString(),
-          serviceId: appointment.serviceId.toString(),
-          userId: appointment.userId.toString(),
-          appointmentDate: appointment.appointmentDate,
-          status: appointment.status,
-          notes: appointment.notes,
-          master: null,
-          service: null,
-          user: null
-        };
-      }
-    });
+    // Используем глобальную функцию сериализации BigInt
+    console.log('🔄 Сериализуем данные с помощью глобальной функции...');
+    const serializedAppointments = serializeBigInt(appointmentsWithRelations);
+    
+    console.log('✅ Сериализация завершена успешно');
 
     res.json({
       success: true,
