@@ -8,54 +8,49 @@ import StyledIcon from '@/components/ui/StyledIcon';
 import { useTelegram } from '@/hooks/useTelegram';
 import { adminApi, formatPrice } from '@/lib/adminApi';
 
-const adminMenuItems = [
+// Базовые элементы меню (без статистики)
+const baseAdminMenuItems = [
   {
     href: '/admin/masters',
     title: 'Мастера',
     description: 'Управление мастерами',
     icon: 'master',
-    variant: 'salon' as const,
-    stats: '3 мастера'
+    variant: 'salon' as const
   },
   {
     href: '/admin/services',
     title: 'Услуги',
     description: 'Управление услугами',
     icon: 'services',
-    variant: 'primary' as const,
-    stats: '12 услуг'
+    variant: 'primary' as const
   },
   {
     href: '/admin/appointments',
     title: 'Записи',
     description: 'Управление записями',
     icon: 'booking',
-    variant: 'default' as const,
-    stats: '8 сегодня'
+    variant: 'default' as const
   },
   {
     href: '/admin/notifications',
     title: 'Уведомления',
     description: 'Настройка уведомлений',
     icon: 'info',
-    variant: 'primary' as const,
-    stats: 'Активны'
+    variant: 'primary' as const
   },
   {
     href: '/admin/recommendations',
     title: 'Рекомендации',
     description: 'Управление рекомендациями',
     icon: 'star',
-    variant: 'salon' as const,
-    stats: '5 активных'
+    variant: 'salon' as const
   },
   {
     href: '/admin/bonuses',
     title: 'Бонусы',
     description: 'Баллы и скидки',
     icon: 'briefcase',
-    variant: 'primary' as const,
-    stats: '15% скидка'
+    variant: 'primary' as const
   }
 ];
 
@@ -70,6 +65,7 @@ export default function AdminPage() {
     activeServices: 0
   });
   const [loading, setLoading] = useState(true);
+  const [adminMenuItems, setAdminMenuItems] = useState(baseAdminMenuItems);
 
   useEffect(() => {
     loadStats();
@@ -78,10 +74,68 @@ export default function AdminPage() {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const response = await adminApi.getDashboardStats();
-      if (response.success && response.data) {
-        setStats(response.data);
+      
+      // Загружаем статистику дашборда
+      const dashboardResponse = await adminApi.getDashboardStats();
+      if (dashboardResponse.success && dashboardResponse.data) {
+        setStats(dashboardResponse.data);
       }
+
+      // Загружаем данные для меню
+      const [mastersResponse, servicesResponse, appointmentsResponse] = await Promise.allSettled([
+        adminApi.getMasters(),
+        adminApi.getServices(),
+        adminApi.getAppointments()
+      ]);
+
+      // Обновляем меню с реальными данными
+      const updatedMenuItems = baseAdminMenuItems.map(item => {
+        let stats = '';
+        
+        switch (item.href) {
+          case '/admin/masters':
+            if (mastersResponse.status === 'fulfilled' && mastersResponse.value.success) {
+              stats = `${mastersResponse.value.data?.length || 0} мастеров`;
+            } else {
+              stats = 'Ошибка загрузки';
+            }
+            break;
+          case '/admin/services':
+            if (servicesResponse.status === 'fulfilled' && servicesResponse.value.success) {
+              stats = `${servicesResponse.value.data?.length || 0} услуг`;
+            } else {
+              stats = 'Ошибка загрузки';
+            }
+            break;
+          case '/admin/appointments':
+            if (appointmentsResponse.status === 'fulfilled' && appointmentsResponse.value.success) {
+              const todayAppointments = appointmentsResponse.value.data?.filter((apt: any) => {
+                const aptDate = new Date(apt.appointmentDate);
+                const today = new Date();
+                return aptDate.toDateString() === today.toDateString();
+              }).length || 0;
+              stats = `${todayAppointments} сегодня`;
+            } else {
+              stats = 'Ошибка загрузки';
+            }
+            break;
+          case '/admin/notifications':
+            stats = 'Активны';
+            break;
+          case '/admin/recommendations':
+            stats = '5 активных';
+            break;
+          case '/admin/bonuses':
+            stats = '15% скидка';
+            break;
+          default:
+            stats = '';
+        }
+
+        return { ...item, stats };
+      });
+
+      setAdminMenuItems(updatedMenuItems);
     } catch (err) {
       console.error('Ошибка при загрузке статистики:', err);
     } finally {
@@ -180,9 +234,9 @@ export default function AdminPage() {
         <div className="mt-8 sm:mt-12 text-center animate-fade-in opacity-80">
           <div className="text-white/40 text-xs sm:text-sm">
             <div className="flex items-center justify-center space-x-4 mb-4">
-              <span>👥 3 мастера</span>
-              <span>💅 12 услуг</span>
-              <span>📅 8 записей</span>
+              <span>👥 {stats.activeMasters} мастеров</span>
+              <span>💅 {stats.activeServices} услуг</span>
+              <span>📅 {stats.todayAppointments} записей</span>
             </div>
             <div className="p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
               <div className="flex items-start space-x-3">
