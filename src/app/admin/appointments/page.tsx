@@ -43,19 +43,48 @@ export default function AdminAppointmentsPage() {
           console.log('📋 Raw appointments data:', res.data);
           console.log('📋 Appointments count:', res.data.length);
           
-          const normalized = res.data.map((apt: any) => ({
-            id: apt.id,
-            clientName: `${apt.user?.firstName || ''} ${apt.user?.lastName || ''}`.trim(),
-            clientPhone: apt.user?.phone || '',
-            masterName: apt.master?.name || '',
-            serviceName: apt.service?.name || '',
-            date: new Date(apt.appointmentDate).toISOString().slice(0,10),
-            time: new Date(apt.appointmentDate).toTimeString().slice(0,5),
-            duration: apt.service?.duration || 0,
-            price: apt.service?.price || 0,
-            status: String(apt.status).toLowerCase(),
-            notes: apt.notes || ''
-          }));
+          const normalized = res.data.map((apt: any) => {
+            console.log('📋 Processing appointment:', apt);
+            console.log('📋 Appointment date:', apt.appointmentDate);
+            
+            // Безопасная обработка даты
+            let appointmentDate;
+            let dateStr = '';
+            let timeStr = '';
+            
+            try {
+              appointmentDate = new Date(apt.appointmentDate);
+              console.log('📋 Parsed date:', appointmentDate);
+              
+              // Проверяем, что дата валидна
+              if (isNaN(appointmentDate.getTime())) {
+                console.warn('⚠️ Invalid date, using fallback');
+                appointmentDate = new Date(); // Используем текущую дату как fallback
+              }
+              
+              dateStr = appointmentDate.toISOString().slice(0,10);
+              timeStr = appointmentDate.toTimeString().slice(0,5);
+            } catch (dateError) {
+              console.error('❌ Date parsing error:', dateError);
+              appointmentDate = new Date();
+              dateStr = appointmentDate.toISOString().slice(0,10);
+              timeStr = appointmentDate.toTimeString().slice(0,5);
+            }
+            
+            return {
+              id: apt.id,
+              clientName: `${apt.user?.firstName || ''} ${apt.user?.lastName || ''}`.trim(),
+              clientPhone: apt.user?.phone || '',
+              masterName: apt.master?.name || '',
+              serviceName: apt.service?.name || '',
+              date: dateStr,
+              time: timeStr,
+              duration: apt.service?.duration || 0,
+              price: apt.service?.price || 0,
+              status: String(apt.status).toLowerCase(),
+              notes: apt.notes || ''
+            };
+          });
           
           console.log('📋 Normalized appointments:', normalized);
           setAppointments(normalized);
