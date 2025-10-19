@@ -764,6 +764,24 @@ app.get('/api/admin/appointments', async (req, res) => {
     const prismaClient = await getPrismaClient();
     console.log('✅ Prisma Client получен, выполняем запрос...');
 
+    // Сначала проверим, есть ли записи вообще
+    const totalCount = await prismaClient.appointment.count();
+    console.log('📊 Всего записей в базе:', totalCount);
+
+    if (totalCount === 0) {
+      console.log('⚠️ Записей в базе нет, возвращаем пустой массив');
+      return res.json({
+        success: true,
+        data: [],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 0,
+          pages: 0
+        }
+      });
+    }
+
     const { status, page = 1, limit = 10 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     
@@ -772,13 +790,11 @@ app.get('/api/admin/appointments', async (req, res) => {
       where.status = status;
     }
 
+    console.log('🔍 Параметры запроса:', { where, skip, limit });
+
+    // Упрощенный запрос без include для диагностики
     const appointments = await prismaClient.appointment.findMany({
       where,
-      include: {
-        master: true,
-        service: true,
-        user: true
-      },
       orderBy: {
         appointmentDate: 'desc'
       },
@@ -786,12 +802,42 @@ app.get('/api/admin/appointments', async (req, res) => {
       take: Number(limit)
     });
 
+    console.log('✅ Базовые записи получены:', appointments.length, 'записей');
+
+    // Теперь получаем связанные данные отдельно
+    const appointmentsWithRelations = await Promise.all(
+      appointments.map(async (appointment) => {
+        try {
+          const [master, service, user] = await Promise.all([
+            prismaClient.master.findUnique({ where: { id: appointment.masterId } }),
+            prismaClient.service.findUnique({ where: { id: appointment.serviceId } }),
+            prismaClient.user.findUnique({ where: { id: appointment.userId } })
+          ]);
+
+          return {
+            ...appointment,
+            master: master || null,
+            service: service || null,
+            user: user || null
+          };
+        } catch (relationError) {
+          console.error('❌ Ошибка при получении связанных данных для записи', appointment.id, ':', relationError);
+          return {
+            ...appointment,
+            master: null,
+            service: null,
+            user: null
+          };
+        }
+      })
+    );
+
     const total = await prismaClient.appointment.count({ where });
 
-    console.log('✅ Записи для админ панели получены:', appointments.length, 'записей');
+    console.log('✅ Записи для админ панели получены:', appointmentsWithRelations.length, 'записей');
     res.json({
       success: true,
-      data: appointments,
+      data: appointmentsWithRelations,
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -801,6 +847,7 @@ app.get('/api/admin/appointments', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Ошибка при получении записей для админ панели:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Ошибка сервера при получении записей',
