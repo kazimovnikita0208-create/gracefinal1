@@ -15,42 +15,48 @@ const baseAdminMenuItems = [
     title: 'Мастера',
     description: 'Управление мастерами',
     icon: 'master',
-    variant: 'salon' as const
+    variant: 'salon' as const,
+    stats: 'Загрузка...'
   },
   {
     href: '/admin/services',
     title: 'Услуги',
     description: 'Управление услугами',
     icon: 'services',
-    variant: 'primary' as const
+    variant: 'primary' as const,
+    stats: 'Загрузка...'
   },
   {
     href: '/admin/appointments',
     title: 'Записи',
     description: 'Управление записями',
     icon: 'booking',
-    variant: 'default' as const
+    variant: 'default' as const,
+    stats: 'Загрузка...'
   },
   {
     href: '/admin/notifications',
     title: 'Уведомления',
     description: 'Настройка уведомлений',
     icon: 'info',
-    variant: 'primary' as const
+    variant: 'primary' as const,
+    stats: 'Активны'
   },
   {
     href: '/admin/recommendations',
     title: 'Рекомендации',
     description: 'Управление рекомендациями',
     icon: 'star',
-    variant: 'salon' as const
+    variant: 'salon' as const,
+    stats: '5 активных'
   },
   {
     href: '/admin/bonuses',
     title: 'Бонусы',
     description: 'Баллы и скидки',
     icon: 'briefcase',
-    variant: 'primary' as const
+    variant: 'primary' as const,
+    stats: '15% скидка'
   }
 ];
 
