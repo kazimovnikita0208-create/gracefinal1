@@ -276,18 +276,6 @@ app.get('/api/masters', async (req, res) => {
       where: {
         isActive: true
       },
-      include: {
-        services: {
-          include: {
-            service: true
-          }
-        },
-        _count: {
-          select: {
-            appointments: true
-          }
-        }
-      },
       orderBy: {
         name: 'asc'
       }
