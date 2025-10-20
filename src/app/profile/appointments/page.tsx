@@ -73,12 +73,18 @@ export default function AppointmentsPage() {
   }, []);
 
   const upcomingAppointments = (appointments.length ? appointments : mockAppointments).filter(apt => 
-    new Date(apt.date) >= new Date() && apt.status !== 'cancelled' && apt.status !== 'completed'
+    apt.status !== 'completed'
   );
   
   const pastAppointments = (appointments.length ? appointments : mockAppointments).filter(apt => 
-    new Date(apt.date) < new Date() || apt.status === 'cancelled' || apt.status === 'completed'
+    apt.status === 'completed'
   );
+
+  // Логирование для отладки
+  console.log('📋 Все записи:', appointments);
+  console.log('📋 Предстоящие записи:', upcomingAppointments);
+  console.log('📋 Прошедшие записи:', pastAppointments);
+  console.log('📋 Статусы записей:', appointments.map(apt => ({ id: apt.id, status: apt.status })));
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -252,7 +258,7 @@ export default function AppointmentsPage() {
                   </div>
 
                   {/* Действия */}
-                  {selectedTab === 'upcoming' && appointment.status === 'confirmed' && (
+                  {selectedTab === 'upcoming' && appointment.status !== 'completed' && (
                     <div className="flex space-x-3">
                       <NeonButton
                         variant="ghost"
