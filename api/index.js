@@ -281,27 +281,41 @@ app.get('/api/health', (req, res) => {
 app.get('/api/db-test', async (req, res) => {
   try {
     console.log('🔍 Тестируем подключение к базе данных...');
-    console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ Установлен' : '❌ Не установлен');
+    const prismaClient = await getPrismaClient();
     
-    await prisma.$connect();
-    const result = await prisma.$queryRaw`SELECT 1 as test`;
+    // Простой тест - получаем количество мастеров
+    const masterCount = await prismaClient.master.count();
+    console.log('✅ Подключение к базе данных работает, мастеров:', masterCount);
+    
+    // Тест создания записи в MasterService
+    console.log('🔍 Тестируем создание записи в MasterService...');
+    const testConnection = await prismaClient.masterService.create({
+      data: {
+        masterId: 1,
+        serviceId: 1
+      }
+    });
+    console.log('✅ Создание записи в MasterService работает:', testConnection);
+    
+    // Удаляем тестовую запись
+    await prismaClient.masterService.delete({
+      where: { id: testConnection.id }
+    });
+    console.log('✅ Удаление записи из MasterService работает');
     
     res.json({
-      success: true,
-      message: 'База данных подключена успешно',
-      databaseUrl: process.env.DATABASE_URL ? 'Установлен' : 'Не установлен',
-      testResult: result
+      status: 'OK',
+      message: 'База данных работает корректно',
+      masterCount: masterCount,
+      testConnection: 'Успешно создана и удалена тестовая связь'
     });
   } catch (error) {
-    console.error('❌ Ошибка подключения к базе данных:', error);
+    console.error('❌ Ошибка при тестировании базы данных:', error);
     res.status(500).json({
-      success: false,
-      error: 'Ошибка подключения к базе данных',
-      details: {
-        message: error.message,
-        code: error.code,
-        databaseUrl: process.env.DATABASE_URL ? 'Установлен' : 'Не установлен'
-      }
+      status: 'ERROR',
+      message: 'Ошибка подключения к базе данных',
+      error: error.message,
+      errorType: error.name
     });
   }
 });
@@ -1027,7 +1041,8 @@ app.post('/api/admin/masters', async (req, res) => {
 app.put('/api/admin/masters/:id', async (req, res) => {
   try {
     const masterId = parseInt(req.params.id);
-    const { name, specialization, description, experience, photoUrl, serviceIds } = req.body;
+    const { name, specialization, description, experience, photoUrl } = req.body;
+    const serviceIds = undefined; // Временно отключаем обработку услуг для отладки
     console.log('🔍 Обновляем мастера с ID:', masterId);
     console.log('📋 Данные для обновления:', { name, specialization, description, experience, photoUrl, serviceIds });
     console.log('📋 Тип serviceIds:', typeof serviceIds, 'Является массивом:', Array.isArray(serviceIds));
