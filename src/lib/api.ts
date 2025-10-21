@@ -28,6 +28,12 @@ class ApiClient {
     return tg?.initData as string | undefined;
   }
 
+  private getTelegramUserId(): number | null {
+    if (typeof window === 'undefined') return null;
+    const tg = (window as any).Telegram?.WebApp;
+    return tg?.initDataUnsafe?.user?.id || null;
+  }
+
   private async request<T>(
     endpoint: string, 
     options: RequestInit = {}
@@ -142,14 +148,32 @@ class ApiClient {
 
   // Методы для работы с записями
   async createAppointment(appointmentData: CreateAppointmentRequest): Promise<ApiResponse<Appointment>> {
+    // Получаем Telegram ID пользователя
+    const telegramId = this.getTelegramUserId();
+    if (!telegramId) {
+      return { success: false, error: 'Пользователь не аутентифицирован' };
+    }
+
+    // Добавляем Telegram ID к данным записи
+    const dataWithTelegramId = {
+      ...appointmentData,
+      telegramId
+    };
+
     return this.request<Appointment>('/appointments', {
       method: 'POST',
-      body: JSON.stringify(appointmentData),
+      body: JSON.stringify(dataWithTelegramId),
     });
   }
 
   async getMyAppointments(status?: string): Promise<ApiResponse<Appointment[]>> {
-    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    // Получаем Telegram ID пользователя
+    const telegramId = this.getTelegramUserId();
+    if (!telegramId) {
+      return { success: false, error: 'Пользователь не аутентифицирован' };
+    }
+    
+    const query = status ? `?status=${encodeURIComponent(status)}&telegramId=${telegramId}` : `?telegramId=${telegramId}`;
     return this.request<Appointment[]>(`/appointments${query}`);
   }
 

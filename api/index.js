@@ -578,19 +578,37 @@ app.get('/api/services/:id', async (req, res) => {
 // Appointments routes
 app.get('/api/appointments', async (req, res) => {
   try {
-    const { status, page = 1, limit = 10 } = req.query;
-    console.log('🔍 Получаем записи...');
+    const { status, page = 1, limit = 10, telegramId } = req.query;
+    console.log('🔍 Получаем записи для пользователя:', telegramId);
     
     const skip = (Number(page) - 1) * Number(limit);
     
-    const where = { userId: 1 }; // Временно для тестирования
+    if (!telegramId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Telegram ID обязателен'
+      });
+    }
+
+    // Находим пользователя по Telegram ID
+    const prismaClient = await getPrismaClient();
+    const user = await prismaClient.user.findUnique({
+      where: { telegramId: BigInt(telegramId) }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Пользователь не найден'
+      });
+    }
+
+    const where = { userId: user.id };
     
     if (status) {
       where.status = status;
     }
 
-    // Получаем безопасный Prisma Client
-    const prismaClient = await getPrismaClient();
     console.log('✅ Prisma Client получен, выполняем запрос...');
 
     const appointments = await prismaClient.appointment.findMany({
@@ -632,12 +650,19 @@ app.get('/api/appointments', async (req, res) => {
 // Create appointment
 app.post('/api/appointments', async (req, res) => {
   try {
-    const { masterId, serviceId, appointmentDate, notes } = req.body;
+    const { masterId, serviceId, appointmentDate, notes, telegramId } = req.body;
 
     if (!masterId || !serviceId || !appointmentDate) {
       return res.status(400).json({
         success: false,
         error: 'Мастер, услуга и дата записи обязательны'
+      });
+    }
+
+    if (!telegramId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Telegram ID обязателен'
       });
     }
 
@@ -675,9 +700,21 @@ app.post('/api/appointments', async (req, res) => {
       });
     }
 
+    // Находим пользователя по Telegram ID
+    const user = await prismaClient.user.findUnique({
+      where: { telegramId: BigInt(telegramId) }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Пользователь не найден'
+      });
+    }
+
     const appointment = await prismaClient.appointment.create({
       data: {
-        userId: 1, // Временно для тестирования
+        userId: user.id,
         masterId: parseInt(masterId),
         serviceId: parseInt(serviceId),
         appointmentDate: appointmentDateTime,
