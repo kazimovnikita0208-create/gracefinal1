@@ -108,9 +108,11 @@ model MasterSchedule {
 
 // Связь мастеров и услуг
 model MasterService {
-  id        Int @id @default(autoincrement())
-  masterId Int
+  id        Int      @id @default(autoincrement())
+  masterId  Int
   serviceId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
   // Связи
   master   Master  @relation(fields: [masterId], references: [id])
