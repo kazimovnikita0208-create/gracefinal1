@@ -1044,6 +1044,40 @@ app.put('/api/admin/masters/:id', async (req, res) => {
     console.log('🚀 req.params:', req.params);
     console.log('🚀 req.body:', req.body);
     
+    // Проверяем подключение к базе данных СРАЗУ
+    console.log('🔍 Проверяем подключение к базе данных...');
+    try {
+      const testClient = await getPrismaClient();
+      console.log('✅ Prisma Client создан успешно');
+      
+      // Простой тест подключения
+      const testQuery = await testClient.$queryRaw`SELECT 1 as test`;
+      console.log('✅ Тест подключения к БД прошел:', testQuery);
+      
+      // Проверяем существование таблиц
+      console.log('🔍 Проверяем существование таблиц...');
+      const tables = await testClient.$queryRaw`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name IN ('Master', 'Service', 'MasterService')
+      `;
+      console.log('✅ Найденные таблицы:', tables);
+      
+      // Проверяем структуру таблицы MasterService
+      console.log('🔍 Проверяем структуру таблицы MasterService...');
+      const masterServiceColumns = await testClient.$queryRaw`
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns 
+        WHERE table_name = 'MasterService' 
+        AND table_schema = 'public'
+      `;
+      console.log('✅ Структура MasterService:', masterServiceColumns);
+    } catch (dbError) {
+      console.error('❌ ОШИБКА ПОДКЛЮЧЕНИЯ К БД:', dbError);
+      throw dbError;
+    }
+    
     const masterId = parseInt(req.params.id);
     const { name, specialization, description, experience, photoUrl, serviceIds } = req.body;
     
