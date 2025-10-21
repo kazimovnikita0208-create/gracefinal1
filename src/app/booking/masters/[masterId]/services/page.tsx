@@ -153,9 +153,12 @@ export default function MasterServicesPage() {
 
         {/* Список услуг - компактная версия */}
         <div className="mb-4">
-          <h3 className="text-sm font-semibold text-white mb-3 drop-shadow-sm">
+          <h3 className="text-sm font-semibold text-white mb-2 drop-shadow-sm">
             Доступные услуги
           </h3>
+          <p className="text-xs text-white/70 mb-3 drop-shadow-sm">
+            👆 Выберите услугу для записи
+          </p>
           <div className="space-y-2">
             {services.map((service) => (
               <div
@@ -167,10 +170,12 @@ export default function MasterServicesPage() {
                 }`}
                 onClick={() => handleServiceSelect(service.id)}
               >
-                <NeonButton
-                  variant={selectedService === service.id ? "salon" : "primary"}
-                  size="xl"
-                  className="w-full flex items-center justify-between p-3 hover:scale-105 active:scale-95 transition-all duration-300 min-h-[48px] touch-manipulation"
+                <div
+                  className={`w-full flex items-center justify-between p-3 transition-all duration-300 min-h-[48px] touch-manipulation rounded-xl border-2 ${
+                    selectedService === service.id
+                      ? 'bg-gradient-to-r from-primary-500/20 to-primary-600/20 border-primary-400 shadow-lg shadow-primary-500/20'
+                      : 'bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/15 hover:border-white/30'
+                  }`}
                 >
                   <div className="flex-1 text-left min-w-0 pr-2">
                     <div className="text-white font-semibold text-sm mb-1 drop-shadow-sm leading-tight">
@@ -195,22 +200,22 @@ export default function MasterServicesPage() {
                       <div className="w-1.5 h-1.5 bg-primary-600 rounded-full"></div>
                     )}
                   </div>
-                </NeonButton>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Кнопка продолжения - компактная версия */}
+        {/* Кнопка продолжения - единственная кнопка на странице */}
         {selectedService && (
           <div className="fixed bottom-2 left-2 right-2 z-10">
             <NeonButton
               variant="salon"
               size="xl"
-              className="w-full py-3 font-semibold text-sm hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg"
+              className="w-full py-4 font-bold text-base hover:scale-105 active:scale-95 transition-all duration-300 shadow-2xl"
               onClick={handleContinue}
             >
-              Продолжить к выбору времени
+              ✨ Продолжить к выбору времени
             </NeonButton>
           </div>
         )}
