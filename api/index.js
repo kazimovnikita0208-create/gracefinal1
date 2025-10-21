@@ -1129,12 +1129,12 @@ app.put('/api/admin/masters/:id', async (req, res) => {
       console.log('🔗 Обрабатываем услуги для мастера:', serviceIds);
       
       // Удаляем все существующие связи
-      console.log('🗑️ Удаляем существующие связи...');
+      console.log('🗑️ Удаляем существующие связи для мастера', masterId, '...');
       try {
-        await prismaClient.masterService.deleteMany({
+        const deletedConnections = await prismaClient.masterService.deleteMany({
           where: { masterId: masterId }
         });
-        console.log('✅ Существующие связи удалены');
+        console.log('✅ Существующие связи удалены:', deletedConnections.count);
       } catch (error) {
         console.error('❌ Ошибка при удалении связей:', error);
         throw error;
@@ -1195,61 +1195,86 @@ app.put('/api/admin/masters/:id', async (req, res) => {
             });
           }
           
-          // Создаем новые связи
-          const serviceConnections = validServiceIds.map(serviceId => ({
-            masterId: masterId,
-            serviceId: serviceId
-          }));
-          
-          console.log('➕ Создаем новые связи:', serviceConnections);
-          console.log('➕ Типы данных в связях:', serviceConnections.map(conn => ({
-            masterId: typeof conn.masterId,
-            serviceId: typeof conn.serviceId
-          })));
-          
-          // Проверяем, что все ID являются числами
-          const invalidConnections = serviceConnections.filter(conn => 
-            isNaN(conn.masterId) || isNaN(conn.serviceId) || 
-            conn.masterId <= 0 || conn.serviceId <= 0
-          );
-          
-          if (invalidConnections.length > 0) {
-            console.log('❌ Найдены невалидные связи:', invalidConnections);
-            return res.status(400).json({
-              success: false,
-              error: 'Найдены невалидные связи с услугами'
+          // Проверяем, есть ли уже существующие связи для этого мастера
+          console.log('🔍 Проверяем существующие связи для мастера', masterId, '...');
+          let existingConnections;
+          try {
+            existingConnections = await prismaClient.masterService.findMany({
+              where: { masterId: masterId },
+              select: { serviceId: true }
             });
+            console.log('🔍 Найденные связи:', existingConnections.map(conn => conn.serviceId));
+          } catch (error) {
+            console.error('❌ Ошибка при проверке существующих связей:', error);
+            throw error;
           }
           
-          try {
-            console.log('🔍 Создаем связи MasterService с данными:', serviceConnections);
-            console.log('🔍 Проверяем каждую связь:');
-            serviceConnections.forEach((conn, index) => {
-              console.log(`🔍 Связь ${index + 1}:`, {
-                masterId: conn.masterId,
-                serviceId: conn.serviceId,
-                masterIdType: typeof conn.masterId,
-                serviceIdType: typeof conn.serviceId,
-                masterIdValid: !isNaN(conn.masterId) && conn.masterId > 0,
-                serviceIdValid: !isNaN(conn.serviceId) && conn.serviceId > 0
-              });
-            });
+          // Фильтруем только те услуги, которых еще нет
+          const existingServiceIds = existingConnections.map(conn => conn.serviceId);
+          const newServiceIds = validServiceIds.filter(serviceId => !existingServiceIds.includes(serviceId));
+          
+          console.log('🔍 Новые услуги для добавления:', newServiceIds);
+          console.log('🔍 Уже существующие услуги:', existingServiceIds);
+          
+          if (newServiceIds.length === 0) {
+            console.log('ℹ️ Все услуги уже назначены мастеру');
+          } else {
+            // Создаем только новые связи
+            const serviceConnections = newServiceIds.map(serviceId => ({
+              masterId: masterId,
+              serviceId: serviceId
+            }));
             
-            await prismaClient.masterService.createMany({
-              data: serviceConnections
-            });
-            console.log('✅ Новые связи созданы');
-          } catch (error) {
-            console.error('❌ Ошибка при создании связей:', error);
-            console.error('❌ Данные для создания связей:', serviceConnections);
-            console.error('❌ Детали ошибки Prisma:', {
-              name: error.name,
-              message: error.message,
-              code: error.code,
-              meta: error.meta,
-              stack: error.stack
-            });
-            throw error;
+            console.log('➕ Создаем новые связи:', serviceConnections);
+            console.log('➕ Типы данных в связях:', serviceConnections.map(conn => ({
+              masterId: typeof conn.masterId,
+              serviceId: typeof conn.serviceId
+            })));
+            
+            // Проверяем, что все ID являются числами
+            const invalidConnections = serviceConnections.filter(conn => 
+              isNaN(conn.masterId) || isNaN(conn.serviceId) || 
+              conn.masterId <= 0 || conn.serviceId <= 0
+            );
+            
+            if (invalidConnections.length > 0) {
+              console.log('❌ Найдены невалидные связи:', invalidConnections);
+              return res.status(400).json({
+                success: false,
+                error: 'Найдены невалидные связи с услугами'
+              });
+            }
+          
+            try {
+              console.log('🔍 Создаем связи MasterService с данными:', serviceConnections);
+              console.log('🔍 Проверяем каждую связь:');
+              serviceConnections.forEach((conn, index) => {
+                console.log(`🔍 Связь ${index + 1}:`, {
+                  masterId: conn.masterId,
+                  serviceId: conn.serviceId,
+                  masterIdType: typeof conn.masterId,
+                  serviceIdType: typeof conn.serviceId,
+                  masterIdValid: !isNaN(conn.masterId) && conn.masterId > 0,
+                  serviceIdValid: !isNaN(conn.serviceId) && conn.serviceId > 0
+                });
+              });
+              
+              await prismaClient.masterService.createMany({
+                data: serviceConnections
+              });
+              console.log('✅ Новые связи созданы');
+            } catch (error) {
+              console.error('❌ Ошибка при создании связей:', error);
+              console.error('❌ Данные для создания связей:', serviceConnections);
+              console.error('❌ Детали ошибки Prisma:', {
+                name: error.name,
+                message: error.message,
+                code: error.code,
+                meta: error.meta,
+                stack: error.stack
+              });
+              throw error;
+            }
           }
         }
       }
