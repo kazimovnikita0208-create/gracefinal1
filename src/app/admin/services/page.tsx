@@ -19,6 +19,8 @@ export default function AdminServicesPage() {
     price: 0,
     duration: 0
   });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   useEffect(() => {
     loadServices();
@@ -68,20 +70,29 @@ export default function AdminServicesPage() {
 
   const handleSaveService = async () => {
     try {
+      setSaving(true);
+      setMessage(null);
+      
       if (editingService) {
         // Обновление существующей услуги
-        await adminApi.updateService(editingService.id, {
+        const response = await adminApi.updateService(editingService.id, {
           name: newService.name,
           description: newService.description,
           price: newService.price,
           duration: newService.duration
         });
-        setServices(services.map(s => 
-          s.id === editingService.id 
-            ? { ...s, ...newService }
-            : s
-        ));
-        setEditingService(null);
+        
+        if (response.success) {
+          setServices(services.map(s => 
+            s.id === editingService.id 
+              ? { ...s, ...newService }
+              : s
+          ));
+          setMessage({ type: 'success', text: 'Услуга успешно обновлена!' });
+          setEditingService(null);
+        } else {
+          setMessage({ type: 'error', text: 'Ошибка обновления услуги' });
+        }
       } else {
         // Создание новой услуги
         const response = await adminApi.createService({
@@ -91,14 +102,28 @@ export default function AdminServicesPage() {
           duration: newService.duration,
           category: 'general' // Универсальная категория
         });
+        
         if (response.success && response.data) {
           setServices([...services, response.data]);
+          setMessage({ type: 'success', text: 'Услуга успешно добавлена!' });
+        } else {
+          setMessage({ type: 'error', text: 'Ошибка создания услуги' });
         }
       }
-      setShowAddForm(false);
-      setNewService({ name: '', description: '', price: 0, duration: 0 });
+      
+      // Закрываем форму через 2 секунды после успешного сохранения
+      if (message?.type === 'success' || !message) {
+        setTimeout(() => {
+          setShowAddForm(false);
+          setNewService({ name: '', description: '', price: 0, duration: 0 });
+          setMessage(null);
+        }, 2000);
+      }
     } catch (error) {
       console.error('Ошибка сохранения услуги:', error);
+      setMessage({ type: 'error', text: 'Ошибка сохранения услуги' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -129,6 +154,17 @@ export default function AdminServicesPage() {
             <span>Добавить</span>
           </NeonButton>
         </div>
+
+        {/* Уведомления */}
+        {message && (
+          <div className={`mb-4 p-3 rounded-lg border ${
+            message.type === 'success' 
+              ? 'bg-green-500/20 border-green-500/30 text-green-400' 
+              : 'bg-red-500/20 border-red-500/30 text-red-400'
+          }`}>
+            {message.text}
+          </div>
+        )}
 
         {/* Статистика */}
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mb-4 border border-white/20">
@@ -272,9 +308,12 @@ export default function AdminServicesPage() {
                       Цена (₽)
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       value={newService.price}
-                      onChange={(e) => setNewService({...newService, price: parseInt(e.target.value) || 0})}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, ''); // Только цифры
+                        setNewService({...newService, price: parseInt(value) || 0});
+                      }}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="0"
                     />
@@ -284,9 +323,12 @@ export default function AdminServicesPage() {
                       Длительность (мин)
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       value={newService.duration}
-                      onChange={(e) => setNewService({...newService, duration: parseInt(e.target.value) || 0})}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, ''); // Только цифры
+                        setNewService({...newService, duration: parseInt(value) || 0});
+                      }}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="0"
                     />
@@ -310,9 +352,9 @@ export default function AdminServicesPage() {
                   variant="primary"
                   size="sm"
                   onClick={handleSaveService}
-                  disabled={!newService.name || newService.price <= 0 || newService.duration <= 0}
+                  disabled={!newService.name || newService.price <= 0 || newService.duration <= 0 || saving}
                 >
-                  {editingService ? 'Сохранить' : 'Добавить'}
+                  {saving ? 'Сохранение...' : (editingService ? 'Сохранить' : 'Добавить')}
                 </NeonButton>
               </div>
             </div>
