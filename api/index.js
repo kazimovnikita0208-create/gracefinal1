@@ -704,6 +704,11 @@ app.get('/api/admin/masters', async (req, res) => {
         name: 'asc'
       },
       include: {
+        services: {
+          include: {
+            service: true
+          }
+        },
         _count: {
           select: {
             appointments: true,
