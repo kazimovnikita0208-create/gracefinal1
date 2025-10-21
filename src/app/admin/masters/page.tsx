@@ -16,6 +16,8 @@ export default function AdminMastersPage() {
   const [editingMaster, setEditingMaster] = useState<Master | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   
   // Состояние для формы добавления мастера
   const [newMaster, setNewMaster] = useState({
@@ -129,8 +131,12 @@ export default function AdminMastersPage() {
   const handleSaveMaster = async () => {
     try {
       hapticFeedback.impact('light');
+      setSaving(true);
+      setError(null);
+      setMessage(null);
+      
       if (!newMaster.name || !newMaster.specialization) {
-        setError('Заполните обязательные поля');
+        setMessage({ type: 'error', text: 'Заполните обязательные поля' });
         return;
       }
 
@@ -145,6 +151,7 @@ export default function AdminMastersPage() {
 
       if (response.success && response.data) {
         setMasters([response.data, ...masters]);
+        setMessage({ type: 'success', text: 'Мастер успешно добавлен!' });
         setNewMaster({
           name: '',
           specialization: '',
@@ -153,13 +160,20 @@ export default function AdminMastersPage() {
           photoUrl: ''
         });
         setSelectedServices([]);
-        setShowAddForm(false);
+        
+        // Закрываем форму через 2 секунды после успешного сохранения
+        setTimeout(() => {
+          setShowAddForm(false);
+          setMessage(null);
+        }, 2000);
       } else {
-        setError('Не удалось добавить мастера');
+        setMessage({ type: 'error', text: 'Не удалось добавить мастера' });
       }
     } catch (err) {
       console.error('Ошибка при добавлении мастера:', err);
-      setError('Не удалось добавить мастера');
+      setMessage({ type: 'error', text: 'Ошибка сохранения мастера' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -195,6 +209,17 @@ export default function AdminMastersPage() {
         {loading && (
           <div className="text-center py-8">
             <div className="text-white/60">Загрузка мастеров...</div>
+          </div>
+        )}
+
+        {/* Уведомления */}
+        {message && (
+          <div className={`mb-4 p-3 rounded-lg border ${
+            message.type === 'success' 
+              ? 'bg-green-500/20 border-green-500/30 text-green-400' 
+              : 'bg-red-500/20 border-red-500/30 text-red-400'
+          }`}>
+            {message.text}
           </div>
         )}
 
@@ -388,8 +413,9 @@ export default function AdminMastersPage() {
                   variant="salon"
                   size="sm"
                   onClick={handleSaveMaster}
+                  disabled={saving}
                 >
-                  Добавить
+                  {saving ? 'Сохранение...' : 'Добавить'}
                 </NeonButton>
               </div>
             </div>
@@ -468,23 +494,39 @@ export default function AdminMastersPage() {
                 <NeonButton
                   variant="salon"
                   size="sm"
+                  disabled={saving}
                   onClick={async () => {
                     try {
                       if (!editingMaster) return;
+                      setSaving(true);
+                      setMessage(null);
+                      
                       const res = await adminApi.updateMaster(editingMaster.id, {
                         ...editMasterData,
                         serviceIds: selectedServices,
                       } as any);
+                      
                       if (res.success && res.data) {
                         setMasters(masters.map(m => (m.id === editingMaster.id ? res.data as any : m)));
+                        setMessage({ type: 'success', text: 'Мастер успешно обновлен!' });
                         setEditingMaster(null);
+                        
+                        // Закрываем форму через 2 секунды после успешного сохранения
+                        setTimeout(() => {
+                          setMessage(null);
+                        }, 2000);
+                      } else {
+                        setMessage({ type: 'error', text: 'Не удалось сохранить изменения' });
                       }
                     } catch (e) {
-                      setError('Не удалось сохранить изменения');
+                      console.error('Ошибка при обновлении мастера:', e);
+                      setMessage({ type: 'error', text: 'Ошибка сохранения мастера' });
+                    } finally {
+                      setSaving(false);
                     }
                   }}
                 >
-                  Сохранить
+                  {saving ? 'Сохранение...' : 'Сохранить'}
                 </NeonButton>
               </div>
             </div>
