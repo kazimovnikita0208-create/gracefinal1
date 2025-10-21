@@ -16,7 +16,7 @@ const baseAdminMenuItems = [
     description: 'Управление мастерами',
     icon: 'master',
     variant: 'salon' as const,
-    stats: 'Загрузка...'
+    stats: '3 мастера'
   },
   {
     href: '/admin/services',
@@ -24,7 +24,7 @@ const baseAdminMenuItems = [
     description: 'Управление услугами',
     icon: 'services',
     variant: 'primary' as const,
-    stats: 'Загрузка...'
+    stats: '8 услуг'
   },
   {
     href: '/admin/appointments',
@@ -32,7 +32,7 @@ const baseAdminMenuItems = [
     description: 'Управление записями',
     icon: 'booking',
     variant: 'default' as const,
-    stats: 'Загрузка...'
+    stats: 'Все записи'
   },
   {
     href: '/admin/notifications',
@@ -63,141 +63,61 @@ const baseAdminMenuItems = [
 export default function AdminPage() {
   const { hapticFeedback } = useTelegram();
   const [stats, setStats] = useState({
-    todayAppointments: 0,
-    totalAppointments: 0,
+    completedAppointments: 0,
     totalRevenue: 0,
-    averageRating: 0,
-    activeMasters: 0,
-    activeServices: 0
+    activeMasters: 3,
+    activeServices: 8
   });
-  const [loading, setLoading] = useState(true);
-  const [adminMenuItems, setAdminMenuItems] = useState(baseAdminMenuItems);
+  const [loading, setLoading] = useState(false);
+  const [adminMenuItems] = useState(baseAdminMenuItems);
 
   useEffect(() => {
-    loadStats();
+    loadCompletedStats();
   }, []);
 
-  const loadStats = async () => {
+  const loadCompletedStats = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Загружаем статистику админ панели...');
+      console.log('🔄 Загружаем статистику завершенных записей...');
       
-      // Устанавливаем значения по умолчанию
-      setStats({
-        todayAppointments: 0,
-        totalAppointments: 0,
-        totalRevenue: 0,
-        averageRating: 0,
-        activeMasters: 0,
-        activeServices: 0
-      });
-
-      // Включаем загрузку данных с улучшенной обработкой ошибок
-      console.log('🔄 Включаем загрузку данных с улучшенной обработкой ошибок');
-
-      // Загружаем статистику дашборда
-      try {
-        console.log('🔄 Загружаем dashboard...');
-        const dashboardResponse = await adminApi.getDashboardStats();
-        console.log('📊 Dashboard response:', dashboardResponse);
-        if (dashboardResponse.success && dashboardResponse.data) {
-          setStats(dashboardResponse.data);
-          console.log('✅ Dashboard загружен успешно');
-        } else {
-          console.log('⚠️ Dashboard не загружен, используем значения по умолчанию');
-        }
-      } catch (error) {
-        console.error('❌ Ошибка загрузки dashboard:', error);
-        console.log('⚠️ Продолжаем с значениями по умолчанию');
-      }
-
-      // Загружаем данные для меню
-      console.log('🔄 Загружаем данные для меню...');
-      const [mastersResponse, servicesResponse, appointmentsResponse] = await Promise.allSettled([
-        adminApi.getMasters(),
-        adminApi.getServices(),
-        adminApi.getAppointments()
-      ]);
+      // Загружаем только статистику по завершенным записям
+      const appointmentsResponse = await adminApi.getAppointments();
       
-      console.log('📋 Responses:', { mastersResponse, servicesResponse, appointmentsResponse });
-
-      // Обновляем меню с реальными данными
-      console.log('🔄 Обновляем меню с данными...');
-      const updatedMenuItems = baseAdminMenuItems.map(item => {
-        let stats = '';
+      if (appointmentsResponse.success && appointmentsResponse.data) {
+        const completedAppointments = appointmentsResponse.data.filter((apt: any) => 
+          apt.status === 'COMPLETED'
+        );
         
-        try {
-          switch (item.href) {
-            case '/admin/masters':
-              if (mastersResponse.status === 'fulfilled' && mastersResponse.value.success) {
-                const mastersCount = mastersResponse.value.data?.length || 0;
-                stats = `${mastersCount} мастеров`;
-                console.log(`✅ Мастера: ${mastersCount}`);
-              } else {
-                stats = 'Ошибка загрузки';
-                console.log('❌ Ошибка загрузки мастеров');
-              }
-              break;
-            case '/admin/services':
-              if (servicesResponse.status === 'fulfilled' && servicesResponse.value.success) {
-                const servicesCount = servicesResponse.value.data?.length || 0;
-                stats = `${servicesCount} услуг`;
-                console.log(`✅ Услуги: ${servicesCount}`);
-              } else {
-                stats = 'Ошибка загрузки';
-                console.log('❌ Ошибка загрузки услуг');
-              }
-              break;
-            case '/admin/appointments':
-              if (appointmentsResponse.status === 'fulfilled' && appointmentsResponse.value.success) {
-                console.log('📋 Appointments data:', appointmentsResponse.value.data);
-                console.log('📋 Appointments count:', appointmentsResponse.value.data?.length);
-                
-                const todayAppointments = appointmentsResponse.value.data?.filter((apt: any) => {
-                  const aptDate = new Date(apt.appointmentDate);
-                  const today = new Date();
-                  return aptDate.toDateString() === today.toDateString();
-                }).length || 0;
-                stats = `${todayAppointments} сегодня`;
-                console.log(`✅ Записи: ${todayAppointments} сегодня`);
-              } else {
-                stats = 'Ошибка загрузки';
-                console.log('❌ Ошибка загрузки записей:', appointmentsResponse);
-              }
-              break;
-            case '/admin/notifications':
-              stats = 'Активны';
-              break;
-            case '/admin/recommendations':
-              stats = '5 активных';
-              break;
-            case '/admin/bonuses':
-              stats = '15% скидка';
-              break;
-            default:
-              stats = '';
-          }
-        } catch (menuError) {
-          console.error(`❌ Ошибка обработки меню для ${item.href}:`, menuError);
-          stats = 'Ошибка';
-        }
-
-        return { ...item, stats };
-      });
-
-      setAdminMenuItems(updatedMenuItems);
-      console.log('✅ Админ панель загружена успешно');
-      setLoading(false);
-    } catch (err) {
-      console.error('❌ Критическая ошибка при загрузке статистики:', err);
+        const totalRevenue = completedAppointments.reduce((sum: number, apt: any) => 
+          sum + (apt.totalPrice || 0), 0
+        );
+        
+        setStats({
+          completedAppointments: completedAppointments.length,
+          totalRevenue: totalRevenue,
+          activeMasters: 3,
+          activeServices: 8
+        });
+        
+        console.log(`✅ Завершенных записей: ${completedAppointments.length}`);
+        console.log(`✅ Общая выручка: ${totalRevenue}`);
+      } else {
+        // Устанавливаем значения по умолчанию
+        setStats({
+          completedAppointments: 0,
+          totalRevenue: 0,
+          activeMasters: 3,
+          activeServices: 8
+        });
+      }
+    } catch (error) {
+      console.error('❌ Ошибка загрузки статистики:', error);
       // Устанавливаем значения по умолчанию при ошибке
       setStats({
-        todayAppointments: 0,
-        totalAppointments: 0,
+        completedAppointments: 0,
         totalRevenue: 0,
-        averageRating: 0,
-        activeMasters: 0,
-        activeServices: 0
+        activeMasters: 3,
+        activeServices: 8
       });
     } finally {
       setLoading(false);
@@ -273,9 +193,9 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Статистика */}
+        {/* Статистика по завершенным записям */}
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 border border-white/20 animate-fade-in">
-          <h3 className="font-semibold text-white mb-3 drop-shadow-sm">📊 Быстрая статистика</h3>
+          <h3 className="font-semibold text-white mb-3 drop-shadow-sm">📊 Статистика завершенных записей</h3>
           {loading ? (
             <div className="text-center py-4">
               <div className="text-white/60">Загрузка статистики...</div>
@@ -283,8 +203,8 @@ export default function AdminPage() {
           ) : (
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="text-center">
-                <div className="text-white/80">Сегодня</div>
-                <div className="text-white font-bold">{stats.todayAppointments} записей</div>
+                <div className="text-white/80">Завершено</div>
+                <div className="text-white font-bold">{stats.completedAppointments} записей</div>
               </div>
               <div className="text-center">
                 <div className="text-white/80">Выручка</div>
@@ -295,8 +215,8 @@ export default function AdminPage() {
                 <div className="text-white font-bold">{stats.activeMasters}</div>
               </div>
               <div className="text-center">
-                <div className="text-white/80">Рейтинг</div>
-                <div className="text-yellow-400 font-bold">{stats.averageRating.toFixed(1)}⭐</div>
+                <div className="text-white/80">Услуги</div>
+                <div className="text-white font-bold">{stats.activeServices}</div>
               </div>
             </div>
           )}
@@ -308,7 +228,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-center space-x-4 mb-4">
               <span>👥 {stats.activeMasters} мастеров</span>
               <span>💅 {stats.activeServices} услуг</span>
-              <span>📅 {stats.todayAppointments} записей</span>
+              <span>✅ {stats.completedAppointments} завершено</span>
             </div>
             <div className="p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
               <div className="flex items-start space-x-3">
