@@ -1143,7 +1143,8 @@ app.put('/api/admin/masters/:id', async (req, res) => {
       // Если есть услуги для добавления
       if (Array.isArray(serviceIds) && serviceIds.length > 0) {
         console.log('🔗 Исходные serviceIds:', serviceIds);
-        console.log('🔗 Типы элементов в serviceIds:', serviceIds.map(id => typeof id));
+        console.log('🔗 Типы элементов в serviceIds:', serviceIds.map(id => ({ id, type: typeof id, isNaN: isNaN(id) })));
+        console.log('🔗 Содержимое serviceIds:', JSON.stringify(serviceIds));
         
         const validServiceIds = serviceIds
           .filter(id => id !== null && id !== undefined && id !== '')
@@ -1153,6 +1154,26 @@ app.put('/api/admin/masters/:id', async (req, res) => {
         console.log('🔗 Валидные ID услуг после фильтрации:', validServiceIds);
         
         if (validServiceIds.length > 0) {
+          // Проверяем существование мастера
+          let existingMaster;
+          try {
+            existingMaster = await prismaClient.master.findUnique({
+              where: { id: masterId },
+              select: { id: true }
+            });
+            console.log('🔗 Существующий мастер:', existingMaster);
+            if (!existingMaster) {
+              console.log('❌ Мастер не найден!');
+              return res.status(404).json({
+                success: false,
+                error: 'Мастер не найден'
+              });
+            }
+          } catch (error) {
+            console.error('❌ Ошибка при проверке существования мастера:', error);
+            throw error;
+          }
+          
           // Проверяем существование услуг
           let existingServices;
           try {
@@ -1201,6 +1222,19 @@ app.put('/api/admin/masters/:id', async (req, res) => {
           }
           
           try {
+            console.log('🔍 Создаем связи MasterService с данными:', serviceConnections);
+            console.log('🔍 Проверяем каждую связь:');
+            serviceConnections.forEach((conn, index) => {
+              console.log(`🔍 Связь ${index + 1}:`, {
+                masterId: conn.masterId,
+                serviceId: conn.serviceId,
+                masterIdType: typeof conn.masterId,
+                serviceIdType: typeof conn.serviceId,
+                masterIdValid: !isNaN(conn.masterId) && conn.masterId > 0,
+                serviceIdValid: !isNaN(conn.serviceId) && conn.serviceId > 0
+              });
+            });
+            
             await prismaClient.masterService.createMany({
               data: serviceConnections
             });
@@ -1208,6 +1242,13 @@ app.put('/api/admin/masters/:id', async (req, res) => {
           } catch (error) {
             console.error('❌ Ошибка при создании связей:', error);
             console.error('❌ Данные для создания связей:', serviceConnections);
+            console.error('❌ Детали ошибки Prisma:', {
+              name: error.name,
+              message: error.message,
+              code: error.code,
+              meta: error.meta,
+              stack: error.stack
+            });
             throw error;
           }
         }
