@@ -127,7 +127,7 @@ export default function MasterServicesPage() {
       showBackButton={true}
       backButtonHref="/booking/masters"
     >
-      <div className="w-full max-w-sm mx-auto px-4 flex flex-col justify-center min-h-screen py-4 pb-24">
+      <div className="w-full max-w-sm mx-auto px-4 flex flex-col justify-center min-h-screen py-4 pb-20">
         {/* Информация о мастере - компактная версия */}
         <div className="mb-4">
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-3 mb-4">
@@ -218,22 +218,20 @@ export default function MasterServicesPage() {
 
         {/* Кнопка продолжения - единственная кнопка на странице */}
         {selectedService && (
-          <div className="fixed bottom-4 left-4 right-4 z-50">
-            <div className="bg-black/20 backdrop-blur-sm rounded-xl p-1">
-              <NeonButton
-                variant="salon"
-                size="xl"
-                className="w-full py-5 font-bold text-lg hover:scale-105 active:scale-95 transition-all duration-300 shadow-2xl border-2 border-white/30"
-                onClick={handleContinue}
-              >
-                ✨ Продолжить к выбору времени
-              </NeonButton>
-            </div>
+          <div className="fixed bottom-20 left-4 right-4 z-50">
+            <NeonButton
+              variant="salon"
+              size="lg"
+              className="w-full py-3 font-semibold text-sm hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg"
+              onClick={handleContinue}
+            >
+              ✨ Продолжить к выбору времени
+            </NeonButton>
           </div>
         )}
 
         {/* Информационный блок - компактная версия */}
-        <div className="mt-4 mb-8">
+        <div className="mt-4 mb-4">
           <Card className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl">
             <div className="p-3">
               <h4 className="text-white font-semibold mb-2 text-xs drop-shadow-sm">
