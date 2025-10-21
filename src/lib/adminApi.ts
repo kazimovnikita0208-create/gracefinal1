@@ -85,6 +85,7 @@ class AdminApiClient {
     experience?: number;
     serviceIds?: number[];
   }): Promise<ApiResponse<Master>> {
+    console.log('🔍 Создаем мастера с данными:', masterData);
     return this.request('/admin/masters', {
       method: 'POST',
       body: JSON.stringify(masterData),
@@ -94,6 +95,7 @@ class AdminApiClient {
   async updateMaster(masterId: number, masterData: Partial<Master> & {
     serviceIds?: number[];
   }): Promise<ApiResponse<Master>> {
+    console.log('🔍 Обновляем мастера с данными:', masterData);
     return this.request(`/admin/masters/${masterId}`, {
       method: 'PUT',
       body: JSON.stringify(masterData),

@@ -981,19 +981,37 @@ app.post('/api/admin/masters', async (req, res) => {
     });
 
     // Если указаны услуги, создаем связи
-    if (serviceIds && serviceIds.length > 0) {
+    if (serviceIds && Array.isArray(serviceIds) && serviceIds.length > 0) {
+      console.log('🔗 Создаем связи с услугами:', serviceIds);
+      
+      const serviceConnections = serviceIds.map(serviceId => ({
+        masterId: master.id,
+        serviceId: parseInt(serviceId) // Убеждаемся, что это число
+      }));
+      
+      console.log('🔗 Создаем связи:', serviceConnections);
+      
       await prismaClient.masterService.createMany({
-        data: serviceIds.map(serviceId => ({
-          masterId: master.id,
-          serviceId: serviceId
-        }))
+        data: serviceConnections
       });
     }
+
+    // Получаем мастера с услугами
+    const masterWithServices = await prismaClient.master.findUnique({
+      where: { id: master.id },
+      include: {
+        services: {
+          include: {
+            service: true
+          }
+        }
+      }
+    });
 
     console.log('✅ Мастер создан:', master.name);
     res.status(201).json({
       success: true,
-      data: master
+      data: masterWithServices
     });
   } catch (error) {
     console.error('❌ Ошибка при создании мастера:', error);
@@ -1011,6 +1029,7 @@ app.put('/api/admin/masters/:id', async (req, res) => {
     const masterId = parseInt(req.params.id);
     const { name, specialization, description, experience, photoUrl, serviceIds } = req.body;
     console.log('🔍 Обновляем мастера с ID:', masterId);
+    console.log('📋 Данные для обновления:', { name, specialization, description, experience, photoUrl, serviceIds });
 
     // Получаем безопасный Prisma Client
     const prismaClient = await getPrismaClient();
@@ -1024,11 +1043,20 @@ app.put('/api/admin/masters/:id', async (req, res) => {
         description,
         experience,
         photoUrl
+      },
+      include: {
+        services: {
+          include: {
+            service: true
+          }
+        }
       }
     });
 
     // Обновляем связи с услугами
-    if (serviceIds) {
+    if (serviceIds && Array.isArray(serviceIds)) {
+      console.log('🔗 Обновляем связи с услугами:', serviceIds);
+      
       // Удаляем старые связи
       await prismaClient.masterService.deleteMany({
         where: { masterId: masterId }
@@ -1036,11 +1064,15 @@ app.put('/api/admin/masters/:id', async (req, res) => {
 
       // Создаем новые связи
       if (serviceIds.length > 0) {
+        const serviceConnections = serviceIds.map(serviceId => ({
+          masterId: masterId,
+          serviceId: parseInt(serviceId) // Убеждаемся, что это число
+        }));
+        
+        console.log('🔗 Создаем связи:', serviceConnections);
+        
         await prismaClient.masterService.createMany({
-          data: serviceIds.map(serviceId => ({
-            masterId: masterId,
-            serviceId: serviceId
-          }))
+          data: serviceConnections
         });
       }
     }
