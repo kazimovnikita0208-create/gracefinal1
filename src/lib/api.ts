@@ -65,6 +65,22 @@ class ApiClient {
   }
 
   // Методы для работы с пользователями
+  async authenticateUser(telegramId: number, firstName?: string, lastName?: string, username?: string): Promise<ApiResponse<User>> {
+    return this.request<User>('/users/auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        telegramId,
+        firstName,
+        lastName,
+        username
+      })
+    });
+  }
+
+  async getCurrentUser(telegramId: number): Promise<ApiResponse<User>> {
+    return this.request<User>(`/users/me?telegramId=${telegramId}`);
+  }
+
   async getUser(telegramId: number): Promise<ApiResponse<User>> {
     return this.request<User>(`/users/${telegramId}`);
   }

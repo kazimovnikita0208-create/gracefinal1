@@ -929,6 +929,92 @@ app.get('/api/admin/appointments', async (req, res) => {
   }
 });
 
+// User authentication endpoints
+app.post('/api/users/auth', async (req, res) => {
+  try {
+    console.log('🔐 Аутентификация пользователя...');
+    const { telegramId, firstName, lastName, username } = req.body;
+    
+    if (!telegramId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Telegram ID обязателен' 
+      });
+    }
+
+    const prismaClient = await getPrismaClient();
+    
+    // Ищем существующего пользователя
+    let user = await prismaClient.user.findUnique({
+      where: { telegramId: BigInt(telegramId) }
+    });
+
+    if (!user) {
+      // Создаем нового пользователя
+      console.log('👤 Создаем нового пользователя:', { telegramId, firstName, lastName, username });
+      user = await prismaClient.user.create({
+        data: {
+          telegramId: BigInt(telegramId),
+          firstName: firstName || 'Пользователь',
+          lastName: lastName || null,
+          username: username || null
+        }
+      });
+      console.log('✅ Пользователь создан:', user.id);
+    } else {
+      console.log('✅ Пользователь найден:', user.id);
+    }
+
+    res.json({
+      success: true,
+      data: serializeBigInt(user)
+    });
+  } catch (error) {
+    console.error('❌ Ошибка аутентификации:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка аутентификации'
+    });
+  }
+});
+
+app.get('/api/users/me', async (req, res) => {
+  try {
+    const { telegramId } = req.query;
+    
+    if (!telegramId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Telegram ID обязателен' 
+      });
+    }
+
+    const prismaClient = await getPrismaClient();
+    
+    const user = await prismaClient.user.findUnique({
+      where: { telegramId: BigInt(telegramId) }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Пользователь не найден'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: serializeBigInt(user)
+    });
+  } catch (error) {
+    console.error('❌ Ошибка получения пользователя:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка получения пользователя'
+    });
+  }
+});
+
 // Get users for admin panel
 app.get('/api/admin/users', async (req, res) => {
   try {

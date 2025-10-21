@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { TelegramUser, TelegramWebAppData } from '@/types';
+import { api } from '@/lib/api';
 
 // Типы для Telegram Web App API
 declare global {
@@ -95,7 +96,35 @@ declare global {
 export const useTelegram = () => {
   const [webApp, setWebApp] = useState<any>(null);
   const [user, setUser] = useState<TelegramUser | null>(null);
+  const [authenticatedUser, setAuthenticatedUser] = useState<any>(null);
   const [isReady, setIsReady] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  // Функция аутентификации пользователя
+  const authenticateUser = async (telegramUser: TelegramUser) => {
+    try {
+      setIsAuthenticating(true);
+      console.log('🔐 Аутентифицируем пользователя:', telegramUser);
+      
+      const response = await api.authenticateUser(
+        telegramUser.id,
+        telegramUser.first_name,
+        telegramUser.last_name,
+        telegramUser.username
+      );
+      
+      if (response.success && response.data) {
+        setAuthenticatedUser(response.data);
+        console.log('✅ Пользователь аутентифицирован:', response.data);
+      } else {
+        console.error('❌ Ошибка аутентификации:', response.error);
+      }
+    } catch (error) {
+      console.error('❌ Ошибка аутентификации:', error);
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
@@ -105,6 +134,9 @@ export const useTelegram = () => {
       // Получаем данные пользователя
       if (tg.initDataUnsafe?.user) {
         setUser(tg.initDataUnsafe.user);
+        
+        // Автоматическая аутентификация
+        authenticateUser(tg.initDataUnsafe.user);
       }
       
       // Настраиваем приложение
@@ -188,7 +220,9 @@ export const useTelegram = () => {
   return {
     webApp,
     user,
+    authenticatedUser,
     isReady,
+    isAuthenticating,
     showAlert,
     showConfirm,
     hapticFeedback,
