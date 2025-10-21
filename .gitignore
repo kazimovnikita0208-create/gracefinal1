@@ -97,3 +97,4 @@ backend_temp/
 backend-complete_temp/
 frontend_temp/
 telegram-bot_temp/
+.vercel
