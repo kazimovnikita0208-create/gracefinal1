@@ -1040,10 +1040,17 @@ app.post('/api/admin/masters', async (req, res) => {
 // Update master
 app.put('/api/admin/masters/:id', async (req, res) => {
   try {
+    console.log('🚀 НАЧАЛО ОБНОВЛЕНИЯ МАСТЕРА');
+    console.log('🚀 req.params:', req.params);
+    console.log('🚀 req.body:', req.body);
+    
     const masterId = parseInt(req.params.id);
     const { name, specialization, description, experience, photoUrl, serviceIds } = req.body;
+    
     console.log('🔍 Обновляем мастера с ID:', masterId);
     console.log('📋 Данные для обновления:', { name, specialization, description, experience, photoUrl, serviceIds });
+    console.log('📋 Тип masterId:', typeof masterId, 'Значение:', masterId);
+    console.log('📋 Тип serviceIds:', typeof serviceIds, 'Является массивом:', Array.isArray(serviceIds));
     console.log('📋 Тип serviceIds:', typeof serviceIds, 'Является массивом:', Array.isArray(serviceIds));
     if (serviceIds) {
       console.log('📋 Содержимое serviceIds:', serviceIds);
@@ -1061,6 +1068,7 @@ app.put('/api/admin/masters/:id', async (req, res) => {
     }
 
     // Получаем безопасный Prisma Client
+    console.log('🔍 Получаем Prisma Client...');
     const prismaClient = await getPrismaClient();
     console.log('✅ Prisma Client получен, выполняем запрос...');
 
@@ -1101,6 +1109,7 @@ app.put('/api/admin/masters/:id', async (req, res) => {
     let master;
     if (Object.keys(updateData).length > 0) {
       console.log('📝 Обновляем данные мастера...');
+      console.log('📝 Данные для обновления мастера:', { masterId, updateData });
       try {
         master = await prismaClient.master.update({
           where: { id: masterId },
@@ -1114,6 +1123,7 @@ app.put('/api/admin/masters/:id', async (req, res) => {
       }
     } else {
       console.log('📝 Нет данных для обновления мастера, получаем текущие данные...');
+      console.log('📝 Получаем мастера с ID:', masterId);
       try {
         master = await prismaClient.master.findUnique({
           where: { id: masterId }
