@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { NeonButton } from '@/components/ui/neon-button';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useTelegram } from '@/hooks/useTelegram';
 
 // Моковые данные для истории посещений
@@ -121,6 +122,16 @@ const statusConfig = {
 export default function HistoryPage() {
   const { hapticFeedback } = useTelegram();
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'recent' | 'favorites'>('all');
+  const [loading, setLoading] = useState(true);
+
+  // Имитируем загрузку данных
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000); // 1 секунда загрузки
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -175,6 +186,23 @@ export default function HistoryPage() {
   const totalVisits = mockHistory.length;
   const totalSpent = mockHistory.reduce((sum, visit) => sum + visit.totalPrice, 0);
   const averageRating = 5.0;
+
+  // Показываем индикатор загрузки
+  if (loading) {
+    return (
+      <Layout 
+        title="История посещений" 
+        showBackButton={true}
+        backButtonHref="/profile"
+      >
+        <div className="w-full max-w-sm mx-auto px-4 py-4 pb-20">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <LoadingSpinner size="lg" text="Загружаем историю посещений..." />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout 

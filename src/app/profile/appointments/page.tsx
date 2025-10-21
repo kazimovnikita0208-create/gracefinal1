@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { NeonButton } from '@/components/ui/neon-button';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useTelegram } from '@/hooks/useTelegram';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
@@ -41,10 +42,15 @@ export default function AppointmentsPage() {
   const { hapticFeedback } = useTelegram();
   const [selectedTab, setSelectedTab] = useState<'upcoming' | 'past'>('upcoming');
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
+        setLoading(true);
+        setError(null);
+        
         const res = await api.getMyAppointments();
         if (res.success && res.data) {
           const normalized = res.data.map((apt: any) => ({
@@ -66,8 +72,10 @@ export default function AppointmentsPage() {
           }));
           setAppointments(normalized);
         }
-      } catch (e) {
-        // оставим пустой список в случае ошибки
+      } catch (e: any) {
+        setError(e?.message || 'Не удалось загрузить записи');
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
@@ -115,6 +123,53 @@ export default function AppointmentsPage() {
   };
 
   const currentAppointments = selectedTab === 'upcoming' ? upcomingAppointments : pastAppointments;
+
+  // Показываем индикатор загрузки
+  if (loading) {
+    return (
+      <Layout 
+        title="Мои записи" 
+        showBackButton={true}
+        backButtonHref="/profile"
+      >
+        <div className="w-full max-w-sm mx-auto px-4 py-4 pb-20">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <LoadingSpinner size="lg" text="Загружаем ваши записи..." />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Показываем ошибку
+  if (error) {
+    return (
+      <Layout 
+        title="Мои записи" 
+        showBackButton={true}
+        backButtonHref="/profile"
+      >
+        <div className="w-full max-w-sm mx-auto px-4 py-4 pb-20">
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+            <div className="text-6xl mb-4">😔</div>
+            <h1 className="text-xl font-bold text-white mb-2 drop-shadow-sm">
+              Ошибка загрузки
+            </h1>
+            <p className="text-white/80 mb-6 drop-shadow-sm">
+              {error}
+            </p>
+            <NeonButton
+              variant="primary"
+              size="lg"
+              onClick={() => window.location.reload()}
+            >
+              Попробовать снова
+            </NeonButton>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout 
