@@ -1035,6 +1035,15 @@ app.put('/api/admin/masters/:id', async (req, res) => {
       console.log('📋 Содержимое serviceIds:', serviceIds);
       console.log('📋 Длина serviceIds:', serviceIds.length);
     }
+    
+    // Проверяем валидность masterId
+    if (isNaN(masterId) || masterId <= 0) {
+      console.log('❌ Невалидный masterId:', masterId);
+      return res.status(400).json({
+        success: false,
+        error: 'Невалидный ID мастера'
+      });
+    }
 
     // Получаем безопасный Prisma Client
     const prismaClient = await getPrismaClient();
@@ -1061,6 +1070,8 @@ app.put('/api/admin/masters/:id', async (req, res) => {
 
     console.log('📋 Данные для обновления мастера:', updateData);
     console.log('📋 Ключи в updateData:', Object.keys(updateData));
+    console.log('📋 serviceIds для обработки:', serviceIds);
+    console.log('📋 Тип serviceIds:', typeof serviceIds, 'Является массивом:', Array.isArray(serviceIds));
 
     // Проверяем, что есть данные для обновления (либо мастера, либо услуги)
     if (Object.keys(updateData).length === 0 && serviceIds === undefined) {
@@ -1117,12 +1128,15 @@ app.put('/api/admin/masters/:id', async (req, res) => {
 
       // Если есть услуги для добавления
       if (Array.isArray(serviceIds) && serviceIds.length > 0) {
+        console.log('🔗 Исходные serviceIds:', serviceIds);
+        console.log('🔗 Типы элементов в serviceIds:', serviceIds.map(id => typeof id));
+        
         const validServiceIds = serviceIds
           .filter(id => id !== null && id !== undefined && id !== '')
           .map(id => parseInt(id))
           .filter(id => !isNaN(id) && id > 0);
         
-        console.log('🔗 Валидные ID услуг:', validServiceIds);
+        console.log('🔗 Валидные ID услуг после фильтрации:', validServiceIds);
         
         if (validServiceIds.length > 0) {
           // Проверяем существование услуг
@@ -1153,6 +1167,25 @@ app.put('/api/admin/masters/:id', async (req, res) => {
           }));
           
           console.log('➕ Создаем новые связи:', serviceConnections);
+          console.log('➕ Типы данных в связях:', serviceConnections.map(conn => ({
+            masterId: typeof conn.masterId,
+            serviceId: typeof conn.serviceId
+          })));
+          
+          // Проверяем, что все ID являются числами
+          const invalidConnections = serviceConnections.filter(conn => 
+            isNaN(conn.masterId) || isNaN(conn.serviceId) || 
+            conn.masterId <= 0 || conn.serviceId <= 0
+          );
+          
+          if (invalidConnections.length > 0) {
+            console.log('❌ Найдены невалидные связи:', invalidConnections);
+            return res.status(400).json({
+              success: false,
+              error: 'Найдены невалидные связи с услугами'
+            });
+          }
+          
           try {
             await prismaClient.masterService.createMany({
               data: serviceConnections
