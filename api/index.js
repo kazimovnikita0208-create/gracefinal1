@@ -1042,13 +1042,30 @@ app.put('/api/admin/masters/:id', async (req, res) => {
 
     // Валидация данных
     const updateData = {};
-    if (name) updateData.name = name;
-    if (specialization) updateData.specialization = specialization;
-    if (description !== undefined) updateData.description = description;
-    if (experience !== undefined) updateData.experience = parseInt(experience) || 0;
-    if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
+    if (name && name.trim()) updateData.name = name.trim();
+    if (specialization && specialization.trim()) updateData.specialization = specialization.trim();
+    if (description !== undefined && description !== null && description.trim() !== '') {
+      updateData.description = description.trim();
+    }
+    if (experience !== undefined && experience !== null) {
+      const exp = parseInt(experience);
+      if (!isNaN(exp) && exp >= 0) updateData.experience = exp;
+    }
+    if (photoUrl !== undefined && photoUrl !== null && photoUrl.trim() !== '') {
+      updateData.photoUrl = photoUrl.trim();
+    }
 
     console.log('📋 Данные для обновления мастера:', updateData);
+    console.log('📋 Ключи в updateData:', Object.keys(updateData));
+
+    // Проверяем, что есть данные для обновления
+    if (Object.keys(updateData).length === 0) {
+      console.log('⚠️ Нет данных для обновления мастера');
+      return res.status(400).json({
+        success: false,
+        error: 'Нет данных для обновления'
+      });
+    }
 
     const master = await prismaClient.master.update({
       where: { id: masterId },
@@ -1063,13 +1080,23 @@ app.put('/api/admin/masters/:id', async (req, res) => {
     });
 
     // Обновляем связи с услугами
-    if (serviceIds && Array.isArray(serviceIds)) {
+    if (serviceIds && Array.isArray(serviceIds) && serviceIds.length > 0) {
       console.log('🔗 Обновляем связи с услугами:', serviceIds);
       
       // Проверяем существование услуг
-      if (serviceIds.length > 0) {
-        const validServiceIds = serviceIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+        const validServiceIds = serviceIds
+          .filter(id => id !== null && id !== undefined && id !== '')
+          .map(id => parseInt(id))
+          .filter(id => !isNaN(id) && id > 0);
         console.log('🔗 Валидные ID услуг:', validServiceIds);
+        
+        if (validServiceIds.length === 0) {
+          console.log('⚠️ Нет валидных ID услуг');
+          return res.status(400).json({
+            success: false,
+            error: 'Нет валидных ID услуг'
+          });
+        }
         
         // Проверяем, что все услуги существуют
         const existingServices = await prismaClient.service.findMany({
@@ -1086,7 +1113,6 @@ app.put('/api/admin/masters/:id', async (req, res) => {
             error: 'Некоторые услуги не найдены'
           });
         }
-      }
       
       // Удаляем старые связи
       await prismaClient.masterService.deleteMany({
