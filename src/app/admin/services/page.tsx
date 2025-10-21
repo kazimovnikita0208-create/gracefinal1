@@ -1,51 +1,105 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { NeonButton } from '@/components/ui/neon-button';
 import StyledIcon from '@/components/ui/StyledIcon';
 import { useTelegram } from '@/hooks/useTelegram';
-import { mockData } from '@/lib/api';
-import { formatPrice } from '@/lib/utils';
+import { adminApi, formatPrice } from '@/lib/adminApi';
 
 export default function AdminServicesPage() {
   const { hapticFeedback } = useTelegram();
-  const [services, setServices] = useState(mockData.services);
+  const [services, setServices] = useState<any[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingService, setEditingService] = useState<any>(null);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [newService, setNewService] = useState({
+    name: '',
+    description: '',
+    price: 0,
+    duration: 0
+  });
 
-  const categories = [
-    { id: 'all', name: 'Все услуги' },
-    { id: 'hair', name: 'Парикмахерские' },
-    { id: 'nails', name: 'Маникюр и педикюр' },
-    { id: 'face', name: 'Косметология' }
-  ];
+  useEffect(() => {
+    loadServices();
+  }, []);
 
-  const filteredServices = selectedCategory === 'all'    
-    ? services
-    : services.filter(service => service.name.toLowerCase().includes(selectedCategory.toLowerCase()));
+  const loadServices = async () => {
+    try {
+      setLoading(true);
+      const response = await adminApi.getServices();
+      if (response.success && response.data) {
+        setServices(response.data);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки услуг:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddService = () => {
     hapticFeedback.impact('light');
+    setNewService({ name: '', description: '', price: 0, duration: 0 });
     setShowAddForm(true);
   };
 
   const handleEditService = (service: any) => {
     hapticFeedback.impact('light');
     setEditingService(service);
+    setNewService({
+      name: service.name,
+      description: service.description || '',
+      price: service.price,
+      duration: service.duration
+    });
+    setShowAddForm(true);
   };
 
-  const handleDeleteService = (serviceId: number) => {
+  const handleDeleteService = async (serviceId: number) => {
     hapticFeedback.impact('medium');
-    setServices(services.filter(s => s.id !== serviceId));
+    try {
+      await adminApi.deleteService(serviceId);
+      setServices(services.filter(s => s.id !== serviceId));
+    } catch (error) {
+      console.error('Ошибка удаления услуги:', error);
+    }
   };
 
-  const handleToggleStatus = (serviceId: number) => {
-    hapticFeedback.impact('light');
-    setServices(services.map(s => 
-      s.id === serviceId ? { ...s, isActive: !s.isActive } : s
-    ));
+  const handleSaveService = async () => {
+    try {
+      if (editingService) {
+        // Обновление существующей услуги
+        await adminApi.updateService(editingService.id, {
+          name: newService.name,
+          description: newService.description,
+          price: newService.price,
+          duration: newService.duration
+        });
+        setServices(services.map(s => 
+          s.id === editingService.id 
+            ? { ...s, ...newService }
+            : s
+        ));
+        setEditingService(null);
+      } else {
+        // Создание новой услуги
+        const response = await adminApi.createService({
+          name: newService.name,
+          description: newService.description,
+          price: newService.price,
+          duration: newService.duration,
+          category: 'general' // Универсальная категория
+        });
+        if (response.success && response.data) {
+          setServices([...services, response.data]);
+        }
+      }
+      setShowAddForm(false);
+      setNewService({ name: '', description: '', price: 0, duration: 0 });
+    } catch (error) {
+      console.error('Ошибка сохранения услуги:', error);
+    }
   };
 
   return (
@@ -76,31 +130,31 @@ export default function AdminServicesPage() {
           </NeonButton>
         </div>
 
-        {/* Фильтры категорий */}
-        <div className="flex space-x-1 mb-4 overflow-x-auto pb-2">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id)}
-              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 ${
-                selectedCategory === category.id
-                  ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg border border-primary-400/30 backdrop-blur-sm'
-                  : 'bg-white/10 backdrop-blur-sm text-white border border-white/20 hover:bg-white/20'
-              }`}
-            >
-              {category.name}
-            </button>
-          ))}
+        {/* Статистика */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mb-4 border border-white/20">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-white/80">Всего услуг:</span>
+            <span className="text-white font-bold">{services.length}</span>
+          </div>
         </div>
 
         {/* Список услуг */}
         <div className="space-y-3 mb-4">
-          {filteredServices.map((service, index) => (
-            <div
-              key={service.id}
-              className="bg-gray-800/50 backdrop-blur-sm border border-gray-600/30 rounded-lg p-3 hover:border-gray-500/50 transition-all duration-200"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="text-white/60">Загрузка услуг...</div>
+            </div>
+          ) : services.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-white/60">Нет услуг</div>
+            </div>
+          ) : (
+            services.map((service, index) => (
+              <div
+                key={service.id}
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-600/30 rounded-lg p-3 hover:border-gray-500/50 transition-all duration-200"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center text-white font-bold shadow-lg">
@@ -144,14 +198,6 @@ export default function AdminServicesPage() {
               {/* Действия */}
               <div className="flex items-center justify-center space-x-1 pt-2 border-t border-gray-600/30">
                 <NeonButton
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleToggleStatus(service.id)}
-                  className="text-xs px-2 py-1 min-w-0 flex-1"
-                >
-                  {service.isActive !== false ? 'Выключить' : 'Включить'}
-                </NeonButton>
-                <NeonButton
                   variant="primary"
                   size="sm"
                   onClick={() => handleEditService(service)}
@@ -169,17 +215,24 @@ export default function AdminServicesPage() {
                 </NeonButton>
               </div>
             </div>
-          ))}
+            ))
+          )}
         </div>
 
-        {/* Форма добавления услуги */}
+        {/* Форма добавления/редактирования услуги */}
         {showAddForm && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-gray-900/95 backdrop-blur-xl rounded-xl p-6 w-full max-w-md border border-white/20">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Добавить услугу</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  {editingService ? 'Редактировать услугу' : 'Добавить услугу'}
+                </h3>
                 <button
-                  onClick={() => setShowAddForm(false)}
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setEditingService(null);
+                    setNewService({ name: '', description: '', price: 0, duration: 0 });
+                  }}
                   className="text-white/60 hover:text-white transition-colors"
                 >
                   <StyledIcon name="arrow-left" size="sm" variant="default" />
@@ -193,6 +246,8 @@ export default function AdminServicesPage() {
                   </label>
                   <input
                     type="text"
+                    value={newService.name}
+                    onChange={(e) => setNewService({...newService, name: e.target.value})}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Введите название"
                   />
@@ -200,13 +255,15 @@ export default function AdminServicesPage() {
                 
                 <div>
                   <label className="block text-sm font-medium text-white/80 mb-2">
-                    Категория
+                    Описание (необязательно)
                   </label>
-                  <select className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-                    <option value="hair">Парикмахерские услуги</option>
-                    <option value="nails">Маникюр и педикюр</option>
-                    <option value="face">Косметология</option>
-                  </select>
+                  <textarea
+                    value={newService.description}
+                    onChange={(e) => setNewService({...newService, description: e.target.value})}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Описание услуги"
+                    rows={3}
+                  />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
@@ -216,6 +273,8 @@ export default function AdminServicesPage() {
                     </label>
                     <input
                       type="number"
+                      value={newService.price}
+                      onChange={(e) => setNewService({...newService, price: parseInt(e.target.value) || 0})}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="0"
                     />
@@ -226,6 +285,8 @@ export default function AdminServicesPage() {
                     </label>
                     <input
                       type="number"
+                      value={newService.duration}
+                      onChange={(e) => setNewService({...newService, duration: parseInt(e.target.value) || 0})}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="0"
                     />
@@ -237,19 +298,21 @@ export default function AdminServicesPage() {
                 <NeonButton
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowAddForm(false)}
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setEditingService(null);
+                    setNewService({ name: '', description: '', price: 0, duration: 0 });
+                  }}
                 >
                   Отмена
                 </NeonButton>
                 <NeonButton
                   variant="primary"
                   size="sm"
-                  onClick={() => {
-                    // Логика добавления услуги
-                    setShowAddForm(false);
-                  }}
+                  onClick={handleSaveService}
+                  disabled={!newService.name || newService.price <= 0 || newService.duration <= 0}
                 >
-                  Добавить
+                  {editingService ? 'Сохранить' : 'Добавить'}
                 </NeonButton>
               </div>
             </div>

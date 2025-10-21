@@ -116,7 +116,7 @@ class AdminApiClient {
     description?: string;
     price: number;
     duration: number;
-    category: string;
+    category?: string;
     masterIds?: number[];
   }): Promise<ApiResponse<Service>> {
     return this.request('/admin/services', {
