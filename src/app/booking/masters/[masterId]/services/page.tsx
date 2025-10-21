@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card';
 import { Clock, Star, User } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/adminApi';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import type { Master, Service } from '@/types';
 
 // Используем общий форматер (цены хранятся в копейках, делим на 100)
@@ -79,7 +80,9 @@ export default function MasterServicesPage() {
   if (loading) {
     return (
       <Layout title="Загрузка" showBackButton={true} backButtonHref="/booking/masters">
-        <div className="flex items-center justify-center min-h-[60vh] text-white/80">Загрузка...</div>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <LoadingSpinner size="lg" text="Загружаем услуги мастера..." />
+        </div>
       </Layout>
     );
   }

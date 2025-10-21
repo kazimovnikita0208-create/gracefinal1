@@ -9,17 +9,26 @@ import { MasterCard } from '@/components/ui';
 import { Master } from '@/types';
 import { api, mockData } from '@/lib/api';
 import { useTelegram } from '@/hooks/useTelegram';
+import { useApiCache } from '@/hooks/useApiCache';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { formatPrice } from '@/lib/utils';
 
 export default function MastersPage() {
-  const [masters, setMasters] = useState<Master[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedMaster, setSelectedMaster] = useState<Master | null>(null);
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [selectedDateTime, setSelectedDateTime] = useState<{date: string, time: string} | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { hapticFeedback, mainButton } = useTelegram();
+
+  // Кэшированная загрузка мастеров
+  const { data: mastersResponse, loading, error } = useApiCache(
+    'masters',
+    () => api.getMasters(),
+    { ttl: 5 * 60 * 1000 } // 5 минут кэш
+  );
+  
+  const masters = mastersResponse?.data || [];
 
   // Функции должны быть объявлены до useEffect
   const handleContinue = useCallback(() => {
@@ -39,33 +48,6 @@ export default function MastersPage() {
     }
   }, [selectedMaster, selectedServices, selectedDateTime, hapticFeedback, router]);
 
-  const loadMasters = async () => {
-    try {
-      setLoading(true);
-      console.log('Загружаем мастеров...');
-      
-      // Пробуем загрузить с API, если не получается - используем моковые данные
-      try {
-        const response = await api.getMasters();
-        if (response.success && response.data) {
-          console.log('Мастера загружены с API:', response.data);
-          setMasters(response.data);
-        } else {
-          throw new Error('Failed to load masters');
-        }
-      } catch (apiError) {
-        console.warn('API недоступен, используем моковые данные:', apiError);
-        console.log('Используем моковые данные:', mockData.masters);
-        setMasters(mockData.masters);
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки мастеров:', error);
-      console.log('Используем моковые данные после ошибки:', mockData.masters);
-      setMasters(mockData.masters);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleMasterSelect = (master: Master) => {
     hapticFeedback.impact('light');
@@ -75,7 +57,7 @@ export default function MastersPage() {
 
   // Фильтрация мастеров по услугам и времени
   const getFilteredMasters = () => {
-    let filtered = masters;
+    let filtered = masters || [];
 
     // Фильтрация по услугам - показываем только мастеров, которые могут выполнить выбранные услуги
     if (selectedServices.length > 0) {
@@ -127,8 +109,6 @@ export default function MastersPage() {
 
   // useEffect hooks после объявления функций
   useEffect(() => {
-    loadMasters();
-    
     // Обработка параметров URL
     const servicesParam = searchParams.get('services');
     const dateParam = searchParams.get('date');
@@ -167,7 +147,7 @@ export default function MastersPage() {
       <Layout title="Выбор мастера">
         <div className="container mx-auto max-w-sm">
           <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+            <LoadingSpinner size="lg" text="Загружаем мастеров..." />
           </div>
         </div>
       </Layout>

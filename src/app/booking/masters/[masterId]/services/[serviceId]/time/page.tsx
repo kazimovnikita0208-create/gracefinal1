@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal';
 import { Clock, Calendar, User, Star } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 // Данные загружаем из API
 
@@ -87,11 +88,15 @@ export default function TimeSelectionPage() {
   const [master, setMaster] = useState<any | null>(null);
   const [service, setService] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
+        setLoading(true);
+        setError(null);
+        
         const [mRes, sRes] = await Promise.all([
           api.getMaster(masterId),
           api.getServicesByMaster(masterId)
@@ -104,6 +109,8 @@ export default function TimeSelectionPage() {
         }
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Не удалось загрузить данные');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     if (Number.isFinite(masterId) && Number.isFinite(serviceId)) load();
@@ -158,6 +165,20 @@ export default function TimeSelectionPage() {
     // Переходим на главную страницу после подтверждения
     router.push('/');
   };
+
+  if (loading) {
+    return (
+      <Layout 
+        title="Загрузка" 
+        showBackButton={true}
+        backButtonHref="/booking/masters"
+      >
+        <div className="w-full max-w-sm mx-auto px-4 flex flex-col justify-center min-h-screen py-4 pb-20">
+          <LoadingSpinner size="lg" text="Загружаем данные мастера и услуги..." />
+        </div>
+      </Layout>
+    );
+  }
 
   if (error || !master || !service) {
     return (
