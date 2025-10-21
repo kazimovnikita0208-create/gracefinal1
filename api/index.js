@@ -1044,15 +1044,19 @@ app.put('/api/admin/masters/:id', async (req, res) => {
     const updateData = {};
     if (name && name.trim()) updateData.name = name.trim();
     if (specialization && specialization.trim()) updateData.specialization = specialization.trim();
-    if (description !== undefined && description !== null && description.trim() !== '') {
-      updateData.description = description.trim();
+    
+    // Для опциональных полей явно устанавливаем null если пустые
+    if (description !== undefined) {
+      updateData.description = (description && description.trim() !== '') ? description.trim() : null;
     }
-    if (experience !== undefined && experience !== null) {
+    
+    if (experience !== undefined) {
       const exp = parseInt(experience);
-      if (!isNaN(exp) && exp >= 0) updateData.experience = exp;
+      updateData.experience = (!isNaN(exp) && exp >= 0) ? exp : null;
     }
-    if (photoUrl !== undefined && photoUrl !== null && photoUrl.trim() !== '') {
-      updateData.photoUrl = photoUrl.trim();
+    
+    if (photoUrl !== undefined) {
+      updateData.photoUrl = (photoUrl && photoUrl.trim() !== '') ? photoUrl.trim() : null;
     }
 
     console.log('📋 Данные для обновления мастера:', updateData);
@@ -1071,16 +1075,28 @@ app.put('/api/admin/masters/:id', async (req, res) => {
     let master;
     if (Object.keys(updateData).length > 0) {
       console.log('📝 Обновляем данные мастера...');
-      master = await prismaClient.master.update({
-        where: { id: masterId },
-        data: updateData
-      });
-      console.log('✅ Данные мастера обновлены');
+      try {
+        master = await prismaClient.master.update({
+          where: { id: masterId },
+          data: updateData
+        });
+        console.log('✅ Данные мастера обновлены');
+      } catch (error) {
+        console.error('❌ Ошибка при обновлении мастера:', error);
+        console.error('❌ Данные для обновления:', updateData);
+        throw error;
+      }
     } else {
       console.log('📝 Нет данных для обновления мастера, получаем текущие данные...');
-      master = await prismaClient.master.findUnique({
-        where: { id: masterId }
-      });
+      try {
+        master = await prismaClient.master.findUnique({
+          where: { id: masterId }
+        });
+        console.log('✅ Данные мастера получены');
+      } catch (error) {
+        console.error('❌ Ошибка при получении мастера:', error);
+        throw error;
+      }
     }
 
     // Затем обрабатываем услуги отдельно
@@ -1089,10 +1105,15 @@ app.put('/api/admin/masters/:id', async (req, res) => {
       
       // Удаляем все существующие связи
       console.log('🗑️ Удаляем существующие связи...');
-      await prismaClient.masterService.deleteMany({
-        where: { masterId: masterId }
-      });
-      console.log('✅ Существующие связи удалены');
+      try {
+        await prismaClient.masterService.deleteMany({
+          where: { masterId: masterId }
+        });
+        console.log('✅ Существующие связи удалены');
+      } catch (error) {
+        console.error('❌ Ошибка при удалении связей:', error);
+        throw error;
+      }
 
       // Если есть услуги для добавления
       if (Array.isArray(serviceIds) && serviceIds.length > 0) {
@@ -1105,12 +1126,17 @@ app.put('/api/admin/masters/:id', async (req, res) => {
         
         if (validServiceIds.length > 0) {
           // Проверяем существование услуг
-          const existingServices = await prismaClient.service.findMany({
-            where: { id: { in: validServiceIds } },
-            select: { id: true }
-          });
-          
-          console.log('🔗 Существующие услуги:', existingServices.map(s => s.id));
+          let existingServices;
+          try {
+            existingServices = await prismaClient.service.findMany({
+              where: { id: { in: validServiceIds } },
+              select: { id: true }
+            });
+            console.log('🔗 Существующие услуги:', existingServices.map(s => s.id));
+          } catch (error) {
+            console.error('❌ Ошибка при проверке существования услуг:', error);
+            throw error;
+          }
           
           if (existingServices.length !== validServiceIds.length) {
             console.log('⚠️ Некоторые услуги не найдены!');
@@ -1127,25 +1153,38 @@ app.put('/api/admin/masters/:id', async (req, res) => {
           }));
           
           console.log('➕ Создаем новые связи:', serviceConnections);
-          await prismaClient.masterService.createMany({
-            data: serviceConnections
-          });
-          console.log('✅ Новые связи созданы');
+          try {
+            await prismaClient.masterService.createMany({
+              data: serviceConnections
+            });
+            console.log('✅ Новые связи созданы');
+          } catch (error) {
+            console.error('❌ Ошибка при создании связей:', error);
+            console.error('❌ Данные для создания связей:', serviceConnections);
+            throw error;
+          }
         }
       }
     }
 
     // Получаем обновленного мастера с услугами
-    const masterWithServices = await prismaClient.master.findUnique({
-      where: { id: masterId },
-      include: {
-        services: {
-          include: {
-            service: true
+    let masterWithServices;
+    try {
+      masterWithServices = await prismaClient.master.findUnique({
+        where: { id: masterId },
+        include: {
+          services: {
+            include: {
+              service: true
+            }
           }
         }
-      }
-    });
+      });
+      console.log('✅ Мастер с услугами получен');
+    } catch (error) {
+      console.error('❌ Ошибка при получении мастера с услугами:', error);
+      throw error;
+    }
 
     console.log('✅ Мастер обновлен:', masterWithServices.name);
     res.json({
