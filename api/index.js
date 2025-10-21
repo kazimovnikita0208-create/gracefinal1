@@ -1269,17 +1269,22 @@ app.put('/api/admin/masters/:id', async (req, res) => {
             console.log('ℹ️ Все услуги уже назначены мастеру');
           } else {
             // Создаем только новые связи
+            const now = new Date();
             const serviceConnections = newServiceIds.map(serviceId => {
               const connection = {
                 masterId: parseInt(masterId),
-                serviceId: parseInt(serviceId)
+                serviceId: parseInt(serviceId),
+                createdAt: now,
+                updatedAt: now
               };
               console.log('🔍 Создаем связь:', { 
                 originalMasterId: masterId, 
                 originalServiceId: serviceId,
                 connection,
                 masterIdType: typeof connection.masterId,
-                serviceIdType: typeof connection.serviceId
+                serviceIdType: typeof connection.serviceId,
+                createdAt: connection.createdAt,
+                updatedAt: connection.updatedAt
               });
               return connection;
             });
