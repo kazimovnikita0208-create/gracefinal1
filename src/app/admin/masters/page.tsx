@@ -76,11 +76,14 @@ export default function AdminMastersPage() {
   };
 
   const handleServiceToggle = (serviceId: number) => {
-    setSelectedServices(prev => 
-      prev.includes(serviceId) 
+    console.log('🔍 Переключаем услугу:', serviceId);
+    setSelectedServices(prev => {
+      const newServices = prev.includes(serviceId) 
         ? prev.filter(id => id !== serviceId)
-        : [...prev, serviceId]
-    );
+        : [...prev, serviceId];
+      console.log('🔍 Новые selectedServices:', newServices);
+      return newServices;
+    });
   };
 
   const handleAddMaster = () => {
@@ -98,7 +101,9 @@ export default function AdminMastersPage() {
       experience: (master as any).experience || 0,
       photoUrl: (master as any).photoUrl || ''
     });
-    setSelectedServices(((master as any).services || []).map((s: any) => s.serviceId ?? s.id).filter(Boolean));
+    const masterServices = ((master as any).services || []).map((s: any) => s.serviceId ?? s.id).filter(Boolean);
+    console.log('🔍 Услуги мастера при редактировании:', masterServices);
+    setSelectedServices(masterServices);
   };
 
   const handleDeleteMaster = async (masterId: number) => {
@@ -500,6 +505,13 @@ export default function AdminMastersPage() {
                       if (!editingMaster) return;
                       setSaving(true);
                       setMessage(null);
+                      
+                      console.log('🔍 Обновляем мастера с данными:', {
+                        ...editMasterData,
+                        serviceIds: selectedServices,
+                      });
+                      console.log('🔍 selectedServices:', selectedServices);
+                      console.log('🔍 Тип selectedServices:', typeof selectedServices, 'Длина:', selectedServices?.length);
                       
                       const res = await adminApi.updateMaster(editingMaster.id, {
                         ...editMasterData,

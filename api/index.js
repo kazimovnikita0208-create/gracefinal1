@@ -1041,8 +1041,7 @@ app.post('/api/admin/masters', async (req, res) => {
 app.put('/api/admin/masters/:id', async (req, res) => {
   try {
     const masterId = parseInt(req.params.id);
-    const { name, specialization, description, experience, photoUrl } = req.body;
-    const serviceIds = undefined; // Временно отключаем обработку услуг для отладки
+    const { name, specialization, description, experience, photoUrl, serviceIds } = req.body;
     console.log('🔍 Обновляем мастера с ID:', masterId);
     console.log('📋 Данные для обновления:', { name, specialization, description, experience, photoUrl, serviceIds });
     console.log('📋 Тип serviceIds:', typeof serviceIds, 'Является массивом:', Array.isArray(serviceIds));
