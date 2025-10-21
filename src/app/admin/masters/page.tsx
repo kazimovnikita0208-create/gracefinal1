@@ -506,16 +506,19 @@ export default function AdminMastersPage() {
                       setSaving(true);
                       setMessage(null);
                       
+                      // Преобразуем selectedServices в числа
+                      const numericServiceIds = selectedServices.map(id => parseInt(String(id))).filter(id => !isNaN(id));
                       console.log('🔍 Обновляем мастера с данными:', {
                         ...editMasterData,
-                        serviceIds: selectedServices,
+                        serviceIds: numericServiceIds,
                       });
-                      console.log('🔍 selectedServices:', selectedServices);
+                      console.log('🔍 selectedServices (строки):', selectedServices);
+                      console.log('🔍 numericServiceIds (числа):', numericServiceIds);
                       console.log('🔍 Тип selectedServices:', typeof selectedServices, 'Длина:', selectedServices?.length);
                       
                       const res = await adminApi.updateMaster(editingMaster.id, {
                         ...editMasterData,
-                        serviceIds: selectedServices,
+                        serviceIds: numericServiceIds,
                       } as any);
                       
                       if (res.success && res.data) {

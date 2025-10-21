@@ -1051,6 +1051,7 @@ app.put('/api/admin/masters/:id', async (req, res) => {
     }
     
     // Проверяем валидность masterId
+    console.log('🔍 Проверяем masterId:', { masterId, type: typeof masterId, isNaN: isNaN(masterId) });
     if (isNaN(masterId) || masterId <= 0) {
       console.log('❌ Невалидный masterId:', masterId);
       return res.status(400).json({
@@ -1148,7 +1149,11 @@ app.put('/api/admin/masters/:id', async (req, res) => {
         
         const validServiceIds = serviceIds
           .filter(id => id !== null && id !== undefined && id !== '')
-          .map(id => parseInt(id))
+          .map(id => {
+            const parsedId = parseInt(id);
+            console.log('🔍 Преобразование ID:', { original: id, type: typeof id, parsed: parsedId, isNaN: isNaN(parsedId) });
+            return parsedId;
+          })
           .filter(id => !isNaN(id) && id > 0);
         
         console.log('🔗 Валидные ID услуг после фильтрации:', validServiceIds);
@@ -1220,10 +1225,20 @@ app.put('/api/admin/masters/:id', async (req, res) => {
             console.log('ℹ️ Все услуги уже назначены мастеру');
           } else {
             // Создаем только новые связи
-            const serviceConnections = newServiceIds.map(serviceId => ({
-              masterId: masterId,
-              serviceId: serviceId
-            }));
+            const serviceConnections = newServiceIds.map(serviceId => {
+              const connection = {
+                masterId: parseInt(masterId),
+                serviceId: parseInt(serviceId)
+              };
+              console.log('🔍 Создаем связь:', { 
+                originalMasterId: masterId, 
+                originalServiceId: serviceId,
+                connection,
+                masterIdType: typeof connection.masterId,
+                serviceIdType: typeof connection.serviceId
+              });
+              return connection;
+            });
             
             console.log('➕ Создаем новые связи:', serviceConnections);
             console.log('➕ Типы данных в связях:', serviceConnections.map(conn => ({
