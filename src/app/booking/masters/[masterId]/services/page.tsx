@@ -17,7 +17,7 @@ import type { Master, Service } from '@/types';
 export default function MasterServicesPage() {
   const params = useParams();
   const router = useRouter();
-  const { hapticFeedback } = useTelegram();
+  const { hapticFeedback, mainButton } = useTelegram();
   const [selectedService, setSelectedService] = useState<number | null>(null);
   const [master, setMaster] = useState<Master | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -25,6 +25,16 @@ export default function MasterServicesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const masterId = Number(params.masterId);
+
+  // Скрываем Telegram Main Button на этой странице
+  useEffect(() => {
+    mainButton.hide();
+    
+    // Очищаем при размонтировании
+    return () => {
+      mainButton.hide();
+    };
+  }, [mainButton]);
 
   useEffect(() => {
     let isCancelled = false;
