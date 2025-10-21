@@ -9,7 +9,7 @@ bot.start((ctx) => {
       inline_keyboard: [
         [{
           text: '🏠 Открыть приложение',
-          web_app: { url: 'https://gracefinal.vercel.app' }
+          web_app: { url: 'https://gracefinal1.vercel.app' }
         }]
       ]
     }
@@ -28,7 +28,7 @@ bot.command('app', (ctx) => {
       inline_keyboard: [
         [{
           text: '💄 Grace Beauty Salon',
-          web_app: { url: 'https://gracefinal.vercel.app' }
+          web_app: { url: 'https://gracefinal1.vercel.app' }
         }]
       ]
     }
