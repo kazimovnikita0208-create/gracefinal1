@@ -7,7 +7,7 @@ import { Layout } from '@/components/layout';
 import { NeonButton } from '@/components/ui/neon-button';
 import Card from '@/components/ui/Card';
 import { Clock, Star, User } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, mockData } from '@/lib/api';
 import { formatPrice } from '@/lib/adminApi';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import type { Master, Service } from '@/types';
@@ -36,27 +36,47 @@ export default function MasterServicesPage() {
     };
   }, [mainButton]);
 
+  // Используем моковые данные вместо API
   useEffect(() => {
     let isCancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        const [mRes, sRes] = await Promise.all([
-          api.getMaster(masterId),
-          api.getServicesByMaster(masterId)
-        ]);
-        if (!isCancelled) {
-          if (mRes.success && mRes.data) setMaster(mRes.data);
-          if (sRes.success && sRes.data) setServices(sRes.data);
+    
+    // Имитация загрузки данных
+    const loadMockData = () => {
+      setTimeout(() => {
+        if (isCancelled) return;
+        
+        try {
+          console.log('Загрузка моковых данных мастера и услуг...');
+          
+          // Находим мастера по ID
+          const mockMaster = mockData.masters.find(m => m.id === masterId);
+          
+          if (mockMaster) {
+            setMaster(mockMaster);
+            
+            // Фильтруем услуги для этого мастера (просто берем все услуги для демо)
+            setServices(mockData.services);
+          } else {
+            setError('Мастер не найден');
+          }
+        } catch (e: any) {
+          if (!isCancelled) setError(e?.message || 'Не удалось загрузить данные мастера');
+        } finally {
+          if (!isCancelled) setLoading(false);
         }
-      } catch (e: any) {
-        if (!isCancelled) setError(e?.message || 'Не удалось загрузить данные мастера');
-      } finally {
-        if (!isCancelled) setLoading(false);
-      }
+      }, 1000); // Имитация задержки загрузки
+    };
+    
+    setLoading(true);
+    setError(null);
+    
+    if (Number.isFinite(masterId)) {
+      loadMockData();
+    } else {
+      setError('Неверный ID мастера');
+      setLoading(false);
     }
-    if (Number.isFinite(masterId)) load();
+    
     return () => { isCancelled = true; };
   }, [masterId]);
 

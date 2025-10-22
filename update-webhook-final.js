@@ -2,7 +2,7 @@
 const https = require('https');
 
 const BOT_TOKEN = '7725254943:AAGHFlrj2oDfLxjrNaWjYuJ_nhUlgr2qLZU';
-const WEBHOOK_URL = 'https://gracefinal-5y45taczk-nikitas-projects-1742d776.vercel.app/api/telegram/webhook';
+const WEBHOOK_URL = 'https://gracefinal-m0ntsp5m9-nikitas-projects-1742d776.vercel.app/api/telegram/webhook';
 
 console.log('🚀 Обновляем webhook URL...');
 console.log('🤖 Токен бота:', BOT_TOKEN);

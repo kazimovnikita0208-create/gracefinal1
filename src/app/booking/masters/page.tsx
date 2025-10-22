@@ -21,14 +21,19 @@ export default function MastersPage() {
   const searchParams = useSearchParams();
   const { hapticFeedback, mainButton } = useTelegram();
 
-  // Кэшированная загрузка мастеров
-  const { data: mastersResponse, loading, error } = useApiCache(
-    'masters',
-    () => api.getMasters(),
-    { ttl: 5 * 60 * 1000 } // 5 минут кэш
-  );
-  
-  const masters = mastersResponse?.data || [];
+  // Используем моковые данные вместо API
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [masters, setMasters] = useState<Master[]>([]);
+
+  // Загрузка моковых данных
+  useEffect(() => {
+    console.log('Загрузка моковых данных мастеров...');
+    setTimeout(() => {
+      setMasters(mockData.masters);
+      setLoading(false);
+    }, 1000); // Имитация задержки загрузки
+  }, []);
 
   // Функции должны быть объявлены до useEffect
   const handleContinue = useCallback(() => {

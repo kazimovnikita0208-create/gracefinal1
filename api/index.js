@@ -262,7 +262,7 @@ initializeDatabase();
 
 // Middleware
 app.use(cors({
-  origin: ['https://gracefinal.vercel.app', 'https://web.telegram.org'],
+  origin: ['https://gracefinal.vercel.app', 'https://gracefinal1.vercel.app', 'https://web.telegram.org', 'https://gracefinal-m0ntsp5m9-nikitas-projects-1742d776.vercel.app'],
   credentials: true
 }));
 

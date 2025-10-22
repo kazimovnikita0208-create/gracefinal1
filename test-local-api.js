@@ -1,56 +1,50 @@
-// Тестовый скрипт для проверки локального API
-const API_BASE_URL = 'http://localhost:3001/api';
+// Скрипт для проверки локального API подключения
+const http = require('http');
 
-async function testLocalAPI() {
-  console.log('🧪 Тестируем локальный API...\n');
-
-  try {
-    // Тест 1: Проверка health endpoint
-    console.log('1️⃣ Тестируем health endpoint...');
-    const healthResponse = await fetch(`${API_BASE_URL}/health`);
-    const healthData = await healthResponse.json();
-    console.log('📋 Health response:', healthData);
-
-    if (healthData.status === 'ok') {
-      console.log('✅ API работает!');
-    } else {
-      console.log('❌ API не работает:', healthData);
-    }
-
-    console.log('\n' + '='.repeat(50) + '\n');
-
-    // Тест 2: Аутентификация пользователя
-    console.log('2️⃣ Тестируем аутентификацию пользователя...');
-    const testUser = {
-      telegramId: 123456789,
-      firstName: 'Тестовый',
-      lastName: 'Пользователь',
-      username: 'test_user'
-    };
-
-    const authResponse = await fetch(`${API_BASE_URL}/users/auth`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(testUser)
-    });
-
-    const authData = await authResponse.json();
-    console.log('📋 Результат аутентификации:', authData);
-
-    if (authData.success) {
-      console.log('✅ Пользователь успешно аутентифицирован!');
-      console.log('👤 ID пользователя:', authData.data.id);
-    } else {
-      console.log('❌ Ошибка аутентификации:', authData.error);
-    }
-
-  } catch (error) {
-    console.error('❌ Ошибка тестирования:', error.message);
-    console.log('💡 Убедитесь, что сервер запущен на localhost:3000');
+// Тестируем API endpoint для мастеров
+const options = {
+  hostname: 'localhost',
+  port: 3334,
+  path: '/api/masters',
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
   }
-}
+};
 
-// Запускаем тест
-testLocalAPI();
+console.log('🔍 Тестируем локальный API endpoint для мастеров...');
+console.log('🌐 URL:', `http://${options.hostname}:${options.port}${options.path}`);
+
+const req = http.request(options, (res) => {
+  console.log('📊 Статус:', res.statusCode);
+  console.log('📋 Заголовки:', res.headers);
+  
+  let data = '';
+  res.on('data', (chunk) => {
+    data += chunk;
+  });
+  
+  res.on('end', () => {
+    try {
+      const response = JSON.parse(data);
+      console.log('✅ Ответ получен!');
+      console.log('📊 Успех:', response.success);
+      
+      if (response.data) {
+        console.log('📊 Количество мастеров:', response.data.length);
+        console.log('📋 Первый мастер:', response.data[0]?.name || 'Нет данных');
+      } else {
+        console.log('❌ Данные отсутствуют');
+      }
+    } catch (error) {
+      console.error('❌ Ошибка парсинга ответа:', error);
+      console.log('📋 Сырой ответ:', data);
+    }
+  });
+});
+
+req.on('error', (err) => {
+  console.error('❌ Ошибка запроса:', err);
+});
+
+req.end();

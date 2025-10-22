@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Хардкодим токен бота для отладки
+const BOT_TOKEN = '7725254943:AAGHFlrj2oDfLxjrNaWjYuJ_nhUlgr2qLZU';
+
 export async function GET() {
   return NextResponse.json({
     status: 'ok',
     message: 'Telegram webhook endpoint is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    botTokenExists: !!BOT_TOKEN
   });
 }
 
@@ -15,8 +19,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('📨 WEBHOOK: Body:', JSON.stringify(body, null, 2));
     
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    // Используем хардкодированный токен
+    const botToken = BOT_TOKEN;
+    
     console.log('📨 WEBHOOK: Bot token exists:', !!botToken);
+    console.log('📨 WEBHOOK: Bot token:', botToken);
     
     if (!botToken) {
       console.error('❌ WEBHOOK: TELEGRAM_BOT_TOKEN не найден');
@@ -30,7 +37,7 @@ export async function POST(request: NextRequest) {
       console.log('💬 WEBHOOK: От пользователя:', message.from.first_name);
       
       let responseText = '';
-      let replyMarkup = null;
+      let replyMarkup = undefined; // Изначально не устанавливаем reply_markup
       
       if (message.text === '/start') {
         responseText = '🌟 Добро пожаловать в Grace Beauty Salon!\n\n✨ Мы предлагаем:\n• Маникюр и педикюр\n• Массаж и SPA\n• Косметологические услуги\n• Ногтевой дизайн\n\n📱 Нажмите /app чтобы открыть приложение для записи!';
@@ -72,27 +79,41 @@ export async function POST(request: NextRequest) {
       console.log('📤 WEBHOOK: Chat ID:', message.chat.id);
       console.log('📤 WEBHOOK: Response text:', responseText);
       
-      const telegramResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: message.chat.id,
-          text: responseText,
-          reply_markup: replyMarkup
-        })
-      });
+      // Формируем тело запроса
+      const requestBody: any = {
+        chat_id: message.chat.id,
+        text: responseText
+      };
       
-      const telegramResult = await telegramResponse.json();
-      console.log('📤 WEBHOOK: Ответ от Telegram API:', JSON.stringify(telegramResult, null, 2));
+      // Добавляем reply_markup только если он определен
+      if (replyMarkup) {
+        requestBody.reply_markup = replyMarkup;
+        console.log('📤 WEBHOOK: Reply markup:', JSON.stringify(replyMarkup));
+      }
       
-      if (telegramResult.ok) {
-        console.log('✅ WEBHOOK: Сообщение отправлено успешно!');
-        return NextResponse.json({ success: true, telegramResult });
-      } else {
-        console.error('❌ WEBHOOK: Ошибка отправки сообщения:', telegramResult);
-        return NextResponse.json({ error: 'Failed to send message', details: telegramResult }, { status: 500 });
+      try {
+        // Используем fetch с правильным форматом запроса
+        const telegramResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+        
+        const telegramResult = await telegramResponse.json();
+        console.log('📤 WEBHOOK: Ответ от Telegram API:', JSON.stringify(telegramResult, null, 2));
+        
+        if (telegramResult.ok) {
+          console.log('✅ WEBHOOK: Сообщение отправлено успешно!');
+          return NextResponse.json({ success: true, telegramResult });
+        } else {
+          console.error('❌ WEBHOOK: Ошибка отправки сообщения:', telegramResult);
+          return NextResponse.json({ error: 'Failed to send message', details: telegramResult }, { status: 500 });
+        }
+      } catch (error: any) {
+        console.error('❌ WEBHOOK: Ошибка при отправке сообщения:', error.message);
+        return NextResponse.json({ error: 'Error sending message', details: error.message }, { status: 500 });
       }
     } else {
       console.log('📨 WEBHOOK: Сообщение не найдено в теле запроса');
