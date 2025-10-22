@@ -13,6 +13,7 @@
     "db:seed": "node prisma/seed.js",
     "postinstall": "prisma generate",
     "setup-webhook": "node scripts/setup-webhook.js",
+    "setup-vercel-webhook": "node scripts/setup-vercel-webhook.js",
     "bot": "node telegram-bot/bot.js"
   },
   "dependencies": {
