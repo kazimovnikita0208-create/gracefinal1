@@ -110,9 +110,9 @@ export default function MastersPage() {
   // useEffect hooks после объявления функций
   useEffect(() => {
     // Обработка параметров URL
-    const servicesParam = searchParams.get('services');
-    const dateParam = searchParams.get('date');
-    const timeParam = searchParams.get('time');
+    const servicesParam = searchParams?.get('services');
+    const dateParam = searchParams?.get('date');
+    const timeParam = searchParams?.get('time');
     
     console.log('URL параметры:', { servicesParam, dateParam, timeParam });
     

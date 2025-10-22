@@ -1,21 +1,35 @@
-import { NextRequest, NextResponse } from 'next/server';
+// Финальный webhook для Telegram бота
+export default async function handler(req, res) {
+  // Устанавливаем CORS заголовки
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-export async function POST(request: NextRequest) {
+  // Обрабатываем OPTIONS запросы
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  // Только POST запросы
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
   try {
-    const body = await request.json();
-    
-    // Логируем полученные данные
-    console.log('📨 Получен webhook от Telegram:', JSON.stringify(body, null, 2));
+    console.log('📨 Получен webhook от Telegram:', JSON.stringify(req.body, null, 2));
     
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {
       console.error('❌ TELEGRAM_BOT_TOKEN не найден');
-      return NextResponse.json({ error: 'Bot token not found' }, { status: 500 });
+      res.status(500).json({ error: 'Bot token not found' });
+      return;
     }
     
     // Обрабатываем различные типы обновлений
-    if (body.message) {
-      const message = body.message;
+    if (req.body.message) {
+      const message = req.body.message;
       console.log('💬 Сообщение:', message.text);
       
       let responseText = '';
@@ -25,9 +39,7 @@ export async function POST(request: NextRequest) {
       if (message.text === '/start') {
         responseText = '🌟 Добро пожаловать в Grace Beauty Salon!\n\n✨ Мы предлагаем:\n• Маникюр и педикюр\n• Массаж и SPA\n• Косметологические услуги\n• Ногтевой дизайн\n\n📱 Нажмите /app чтобы открыть приложение для записи!';
       } else if (message.text === '/app') {
-        const webAppUrl = process.env.VERCEL_URL 
-          ? `https://${process.env.VERCEL_URL}` 
-          : 'https://gracefinal1.vercel.app';
+        const webAppUrl = 'https://gracefinal1.vercel.app';
           
         responseText = '📱 Открываем приложение для записи...';
         replyMarkup = {
@@ -50,7 +62,7 @@ export async function POST(request: NextRequest) {
             [
               {
                 text: '📱 Открыть приложение',
-                web_app: { url: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://gracefinal1.vercel.app' }
+                web_app: { url: 'https://gracefinal1.vercel.app' }
               }
             ]
           ]
@@ -73,12 +85,12 @@ export async function POST(request: NextRequest) {
       const telegramResult = await telegramResponse.json();
       console.log('📤 Ответ отправлен в Telegram:', telegramResult);
       
-      return NextResponse.json({ success: true, telegramResult });
+      res.status(200).json({ success: true, telegramResult });
     }
     
     // Обрабатываем callback_query (нажатия на кнопки)
-    if (body.callback_query) {
-      const callback = body.callback_query;
+    if (req.body.callback_query) {
+      const callback = req.body.callback_query;
       console.log('🔘 Callback query:', callback.data);
       
       // Отвечаем на callback query
@@ -94,17 +106,11 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    return NextResponse.json({ success: true });
+    res.status(200).json({ success: true });
   } catch (error) {
     console.error('❌ Ошибка обработки webhook:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 }
 
-export async function GET() {
-  return NextResponse.json({ 
-    status: 'ok', 
-    message: 'Telegram webhook endpoint is running',
-    timestamp: new Date().toISOString()
-  });
-}
+

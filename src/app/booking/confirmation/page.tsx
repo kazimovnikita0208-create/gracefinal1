@@ -20,10 +20,10 @@ export default function ConfirmationPage() {
 
   useEffect(() => {
     // Получаем данные из URL параметров
-    const masterId = searchParams.get('masterId');
-    const serviceIds = searchParams.get('serviceIds');
-    const date = searchParams.get('date');
-    const time = searchParams.get('time');
+    const masterId = searchParams?.get('masterId');
+    const serviceIds = searchParams?.get('serviceIds');
+    const date = searchParams?.get('date');
+    const time = searchParams?.get('time');
 
     if (masterId && serviceIds && date && time) {
       const master = mockData.masters.find(m => m.id === parseInt(masterId));

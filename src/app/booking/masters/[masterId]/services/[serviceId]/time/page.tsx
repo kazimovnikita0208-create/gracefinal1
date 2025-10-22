@@ -82,8 +82,8 @@ export default function TimeSelectionPage() {
   const [availableDates, setAvailableDates] = useState<any[]>([]);
   const [availableTimes, setAvailableTimes] = useState<any[]>([]);
 
-  const masterId = parseInt(params.masterId as string);
-  const serviceId = parseInt(params.serviceId as string);
+  const masterId = parseInt(params?.masterId as string);
+  const serviceId = parseInt(params?.serviceId as string);
   
   const [master, setMaster] = useState<any | null>(null);
   const [service, setService] = useState<any | null>(null);

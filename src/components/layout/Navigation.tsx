@@ -53,7 +53,7 @@ const Navigation: React.FC = () => {
         <div className="flex items-center justify-between">
           {navigationItems.map((item) => {
             const isActive = pathname === item.href || 
-              (item.href !== '/' && pathname.startsWith(item.href));
+              (item.href !== '/' && pathname?.startsWith(item.href));
             
             return (
               <Link

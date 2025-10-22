@@ -24,7 +24,7 @@ export default function MasterServicesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const masterId = Number(params.masterId);
+  const masterId = Number(params?.masterId);
 
   // Скрываем Telegram Main Button на этой странице
   useEffect(() => {

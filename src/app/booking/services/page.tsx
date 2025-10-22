@@ -150,10 +150,10 @@ export default function ServicesPage() {
 
   useEffect(() => {
     // Обработка параметров URL
-    const dateParam = searchParams.get('date');
-    const timeParam = searchParams.get('time');
-    const masterIdParam = searchParams.get('masterId');
-    const masterNameParam = searchParams.get('masterName');
+    const dateParam = searchParams?.get('date');
+    const timeParam = searchParams?.get('time');
+    const masterIdParam = searchParams?.get('masterId');
+    const masterNameParam = searchParams?.get('masterName');
     
     if (dateParam && timeParam) {
       setSelectedDateTime({ date: dateParam, time: timeParam });
